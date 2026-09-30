@@ -53,3 +53,21 @@ gh-token*
 
 # Foundry multi-project pointer (CI resolves the project via CWD gecx-config.json)
 .active-project
+
+# Temporary coverage & backup files
+.coverage
+htmlcov/
+*.bak
+eval-reports/*.tmp.json
+
+# Explicitly tracked project directories and gate verification reports
+!.github/
+!cxas_app/
+!evals/
+!scripts/
+!tests/
+!docs/
+!.githooks/
+!eval-reports/gate_verification_report.json
+!eval-reports/GATE_VERIFICATION_REPORT.md
+

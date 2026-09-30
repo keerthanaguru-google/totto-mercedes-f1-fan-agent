@@ -483,48 +483,6 @@ class TestGitHubWorkflowStructure:
     assert "needs.evaluate-and-gate.outputs.pass_rate" in summary_script
     assert "GITHUB_STEP_SUMMARY" in summary_script
 
-
-class TestRepoIsSelfContainedForCI:
-  """Checks that the repo carries everything the workflow needs on a clean runner."""
-
-  def test_vendored_foundry_skill_has_no_bytecode_caches(self) -> None:
-    skill_root = PROJECT_ROOT / ".agents" / "skills" / "cxas-agent-foundry"
-    assert (skill_root / "SKILL.md").is_file()
-    caches = [p for p in skill_root.rglob("*") if p.name in ("__pycache__", ".pytest_cache")]
-    assert caches == [], f"Vendored skill should not ship caches: {caches}"
-
-  def test_gitignore_excludes_secrets_scratch_and_build_artifacts(self) -> None:
-    gitignore = PROJECT_ROOT / ".gitignore"
-    assert gitignore.is_file()
-    lines = {ln.strip() for ln in gitignore.read_text(encoding="utf-8").splitlines()}
-    for required in (
-        ".venv/",
-        "__pycache__/",
-        ".pytest_cache/",
-        "eval-reports/",
-        ".agents/teamwork/",
-        "*.egg-info/",
-        ".env",
-        ".env.*",
-        "*.log",
-        ".DS_Store",
-        ".active-project",
-        "gh-token*",
-        "*.tar",
-    ):
-      assert required in lines, f".gitignore missing pattern: {required}"
-    assert "*.pyc" in lines or "*.py[cod]" in lines
-
-  def test_requirements_txt_pins_core_dependencies(self) -> None:
-    req = (PROJECT_ROOT / "requirements.txt").read_text(encoding="utf-8")
-    for dep in ("cxas-scrapi>=1.8.0", "pytest>=8", "pyyaml>=6", "pydantic>=2", "requests>=2.31"):
-      assert dep in req, f"requirements.txt missing {dep}"
-
-  def test_pytest_ini_scopes_collection_away_from_vendored_skill(self) -> None:
-    ini = (PROJECT_ROOT / "pytest.ini").read_text(encoding="utf-8")
-    assert "testpaths = tests evals" in ini
-    assert ".agents" in ini
-
   def test_pre_push_scripts_exist_are_executable_and_tests_are_path_portable(
       self,
   ) -> None:
@@ -614,3 +572,45 @@ class TestRepoIsSelfContainedForCI:
     assert "closed" in triggers["pull_request"].get("types", [])
     assert "workflow_dispatch" in triggers
 
+
+
+class TestRepoIsSelfContainedForCI:
+  """Checks that the repo carries everything the workflow needs on a clean runner."""
+
+  def test_vendored_foundry_skill_has_no_bytecode_caches(self) -> None:
+    skill_root = PROJECT_ROOT / ".agents" / "skills" / "cxas-agent-foundry"
+    assert (skill_root / "SKILL.md").is_file()
+    caches = [p for p in skill_root.rglob("*") if p.name in ("__pycache__", ".pytest_cache")]
+    assert caches == [], f"Vendored skill should not ship caches: {caches}"
+
+  def test_gitignore_excludes_secrets_scratch_and_build_artifacts(self) -> None:
+    gitignore = PROJECT_ROOT / ".gitignore"
+    assert gitignore.is_file()
+    lines = {ln.strip() for ln in gitignore.read_text(encoding="utf-8").splitlines()}
+    for required in (
+        ".venv/",
+        "__pycache__/",
+        ".pytest_cache/",
+        "eval-reports/",
+        ".agents/teamwork/",
+        "*.egg-info/",
+        ".env",
+        ".env.*",
+        "*.log",
+        ".DS_Store",
+        ".active-project",
+        "gh-token*",
+        "*.tar",
+    ):
+      assert required in lines, f".gitignore missing pattern: {required}"
+    assert "*.pyc" in lines or "*.py[cod]" in lines
+
+  def test_requirements_txt_pins_core_dependencies(self) -> None:
+    req = (PROJECT_ROOT / "requirements.txt").read_text(encoding="utf-8")
+    for dep in ("cxas-scrapi>=1.8.0", "pytest>=8", "pyyaml>=6", "pydantic>=2", "requests>=2.31"):
+      assert dep in req, f"requirements.txt missing {dep}"
+
+  def test_pytest_ini_scopes_collection_away_from_vendored_skill(self) -> None:
+    ini = (PROJECT_ROOT / "pytest.ini").read_text(encoding="utf-8")
+    assert "testpaths = tests evals" in ini
+    assert ".agents" in ini
