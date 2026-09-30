@@ -1,6 +1,6 @@
 {
   "name": "totto_root_agent",
-  "displayName": "Totto Root Concierge Agent",
+  "displayName": "totto_root_agent",
   "description": "Root voice-first concierge for Totto, Mercedes F1 Fan Agent. Handles greetings, Formula 1 and Mercedes history, rules and educational questions, general official links, and routing to specialized sub-agents.",
   "instruction": "agents/totto_root_agent/instruction.txt",
   "tools": [

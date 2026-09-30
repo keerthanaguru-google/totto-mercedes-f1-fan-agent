@@ -12,17 +12,17 @@ on:
       gcp_project_id:
         description: "Target GCP Project ID"
         required: false
-        default: "gcp-ces-chirp-dev"
+        default: "agents-keerth-sandbox-950246"
         type: string
       gcp_location:
         description: "Target GCP CES Location"
         required: false
-        default: "us-central1"
+        default: "global"
         type: string
       target_app_id:
         description: "Target CES App ID or Display Name for deployment"
         required: false
-        default: "keerthanaguru-totto-mercedes-f1-agent"
+        default: "totto-mercedes-f1-agent"
         type: string
       eval_runs:
         description: "Number of evaluation trials per golden/simulation"
@@ -46,8 +46,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  GCP_PROJECT_ID: ${{ inputs.gcp_project_id || vars.GCP_PROJECT_ID || 'gcp-ces-chirp-dev' }}
-  GCP_LOCATION: ${{ inputs.gcp_location || vars.GCP_LOCATION || 'us-central1' }}
+  GCP_PROJECT_ID: ${{ inputs.gcp_project_id || vars.GCP_PROJECT_ID || 'agents-keerth-sandbox-950246' }}
+  GCP_LOCATION: ${{ inputs.gcp_location || vars.GCP_LOCATION || 'global' }}
+  CES_API_ENDPOINT: ${{ vars.CES_API_ENDPOINT || 'autopush-ces.sandbox.googleapis.com' }}
+  CES_TRANSPORT: ${{ vars.CES_TRANSPORT || 'rest' }}
   APP_DIR: cxas_app/totto_mercedes_f1_agent
   EVAL_THRESHOLD: ${{ inputs.threshold || vars.EVAL_THRESHOLD || '0.90' }}
   EVAL_RUNS: ${{ inputs.eval_runs || vars.EVAL_RUNS || '5' }}
@@ -261,7 +263,7 @@ jobs:
       contents: read
       id-token: write
     env:
-      PROD_APP_ID: ${{ inputs.target_app_id || vars.CES_PROD_APP_ID || 'keerthanaguru-totto-mercedes-f1-agent' }}
+      PROD_APP_ID: ${{ inputs.target_app_id || vars.CES_PROD_APP_ID || 'totto-mercedes-f1-agent' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

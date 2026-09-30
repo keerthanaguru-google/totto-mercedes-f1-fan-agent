@@ -1,7 +1,10 @@
 """Tool for retrieving Formula 1 Grand Prix schedules, weather, and localized session times."""
 
 from typing import Any
-import requests
+try:
+  import requests
+except ImportError:
+  requests = None  # type: ignore[assignment]
 
 _OPENF1_BASE_URL = "https://api.openf1.org/v1"
 _OPENF1_CACHE: dict[tuple[int, str], Any] = {}
@@ -527,6 +530,8 @@ def get_race_schedule(
 
 def _probe_openf1_meetings(race_query: str) -> dict[str, Any]:
   """Queries live OpenF1 meetings/weather endpoints with a 3.0s timeout."""
+  if requests is None:
+    return {"live_ok": False}
   cache_key = (id(requests.get), (race_query or "next").strip().lower())
   if cache_key in _OPENF1_CACHE:
     return _OPENF1_CACHE[cache_key]

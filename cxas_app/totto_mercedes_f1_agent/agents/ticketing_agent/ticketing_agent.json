@@ -1,6 +1,6 @@
 {
   "name": "ticketing_agent",
-  "displayName": "Totto Official Ticketing Guidance Agent",
+  "displayName": "ticketing_agent",
   "description": "Specialist agent directing fans to official Formula 1 ticketing destinations and providing general race-weekend context without selling, reserving, pricing, or modifying tickets.",
   "instruction": "agents/ticketing_agent/instruction.txt",
   "tools": [

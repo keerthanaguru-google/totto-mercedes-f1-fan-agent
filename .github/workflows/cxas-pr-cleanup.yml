@@ -15,10 +15,12 @@ permissions:
   id-token: write
 
 env:
-  PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'gcp-ces-chirp-dev' }}
-  LOCATION: ${{ vars.GCP_LOCATION || 'us-central1' }}
-  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'gcp-ces-chirp-dev' }}
-  GCP_LOCATION: ${{ vars.GCP_LOCATION || 'us-central1' }}
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'agents-keerth-sandbox-950246' }}
+  LOCATION: ${{ vars.GCP_LOCATION || 'global' }}
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'agents-keerth-sandbox-950246' }}
+  GCP_LOCATION: ${{ vars.GCP_LOCATION || 'global' }}
+  CES_API_ENDPOINT: ${{ vars.CES_API_ENDPOINT || 'autopush-ces.sandbox.googleapis.com' }}
+  CES_TRANSPORT: ${{ vars.CES_TRANSPORT || 'rest' }}
   GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
   GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT || secrets.GCP_SERVICE_ACCOUNT }}
 
@@ -72,4 +74,4 @@ jobs:
 
       - name: Run Cleanup
         run: |
-          cxas delete --display-name "[CI] PR-${{ github.event.pull_request.number || inputs.pr_number }} totto_mercedes_f1_agent" --project-id ${{ vars.GCP_PROJECT_ID || 'gcp-ces-chirp-dev' }} --location ${{ vars.GCP_LOCATION || 'us-central1' }}
+          cxas delete --display-name "[CI] PR-${{ github.event.pull_request.number || inputs.pr_number }} totto_mercedes_f1_agent" --project-id ${{ vars.GCP_PROJECT_ID || 'agents-keerth-sandbox-950246' }} --location ${{ vars.GCP_LOCATION || 'global' }}

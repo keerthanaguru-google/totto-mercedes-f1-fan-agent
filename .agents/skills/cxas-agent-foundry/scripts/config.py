@@ -150,6 +150,10 @@ def load_config() -> typing.Any:
         sys.exit(1)
 
     config.setdefault("location", "us")
+    if config.get("ces_api_endpoint"):
+        os.environ.setdefault("CES_API_ENDPOINT", str(config["ces_api_endpoint"]))
+    if config.get("ces_transport"):
+        os.environ.setdefault("CES_TRANSPORT", str(config["ces_transport"]))
     # Store the resolved project dir in config for convenience
     config["_project_dir"] = resolve_project_dir()
     return config

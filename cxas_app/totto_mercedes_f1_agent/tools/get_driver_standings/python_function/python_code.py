@@ -1,7 +1,10 @@
 """Tool for retrieving Formula 1 driver and constructor standings and Mercedes performance."""
 
 from typing import Any
-import requests
+try:
+  import requests
+except ImportError:
+  requests = None  # type: ignore[assignment]
 
 _OPENF1_BASE_URL = "https://api.openf1.org/v1"
 _OPENF1_STANDINGS_CACHE: dict[tuple[int, str], Any] = {}
@@ -261,6 +264,8 @@ def get_driver_standings(
 
 def _probe_openf1_drivers() -> dict[str, Any]:
   """Queries live OpenF1 drivers endpoint with a 3.0-second timeout."""
+  if requests is None:
+    return {"live_ok": False}
   cache_key = (id(requests.get), "drivers_latest")
   if cache_key in _OPENF1_STANDINGS_CACHE:
     return _OPENF1_STANDINGS_CACHE[cache_key]

@@ -1,6 +1,6 @@
 {
   "name": "totto_mercedes_f1_agent",
-  "displayName": "keerthanaguru-totto-mercedes-f1-agent",
+  "displayName": "Totto - Mercedes F1 Fan Agent (keerthanaguru)",
   "description": "Totto, a voice-first conversational fan agent for Mercedes Formula 1 covering race schedules, standings, history, official ticketing guidance, and mocked merchandise support.",
   "rootAgent": "totto_root_agent",
   "tools": [
