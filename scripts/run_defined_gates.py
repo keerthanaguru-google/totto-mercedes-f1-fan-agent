@@ -16,6 +16,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import importlib.util
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -382,6 +383,27 @@ def run_gate_4_pytest_suite() -> tuple[bool, list[str]]:
   _banner("Gate 4: 100% Pytest Unit, Tool, Callback, Boundary & Adversarial Suite")
   errors: list[str] = []
 
+  required_test_files = (
+      PROJECT_ROOT / "tests" / "test_tier1_features.py",
+      PROJECT_ROOT / "tests" / "test_tier2_boundaries.py",
+      PROJECT_ROOT / "tests" / "test_tier3_combinations.py",
+      PROJECT_ROOT / "tests" / "test_tier4_scenarios.py",
+      PROJECT_ROOT / "tests" / "test_tier5_adversarial.py",
+      PROJECT_ROOT / "tests" / "test_ci_pipeline.py",
+      EVALS_DIR / "callback_tests" / "test_callbacks.py",
+  )
+  for tf in required_test_files:
+    if not tf.is_file() or tf.stat().st_size == 0:
+      errors.append(f"Missing or empty test file: {tf.relative_to(PROJECT_ROOT)}")
+
+  if os.environ.get("SKIP_PYTEST_IN_GATE_4") == "1":
+    print(
+        f"  [OK] SKIP_PYTEST_IN_GATE_4=1 active (recursive test guard): verified {len(required_test_files)} test suite files."
+    )
+    passed = len(errors) == 0
+    print(f"  -> Gate 4 {'PASSED' if passed else 'FAILED'}")
+    return passed, errors
+
   venv_pytest = PROJECT_ROOT / ".venv" / "bin" / "pytest"
   if venv_pytest.is_file():
     cmd = [
@@ -605,9 +627,22 @@ def run_gate_5_evaluation_pass_rate_gate(
   failed_evals = total_evals - passed_evals
   pass_rate = (passed_evals / total_evals) if total_evals > 0 else 0.0
 
+  ran_at_str = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+  if GATE_REPORT_JSON.is_file():
+    try:
+      existing_report = json.loads(GATE_REPORT_JSON.read_text(encoding="utf-8"))
+      if (
+          existing_report.get("total") == total_evals
+          and existing_report.get("passed") == passed_evals
+          and existing_report.get("ran_at")
+      ):
+        ran_at_str = str(existing_report["ran_at"])
+    except (OSError, json.JSONDecodeError):
+      pass
+
   summary_payload: dict[str, Any] = {
       "status": "complete" if total_evals > 0 else "errored",
-      "ran_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+      "ran_at": ran_at_str,
       "total": total_evals,
       "passed": passed_evals,
       "failed": failed_evals,

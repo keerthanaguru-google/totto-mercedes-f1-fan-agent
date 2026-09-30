@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
 # Pre-push Git hook for Totto, Mercedes F1 Fan Agent (totto_mercedes_f1_agent).
-# Enforces all 5 Defined CXAS & > 90% Evaluation Gates (scripts/pre_push_gate.sh and scripts/run_defined_gates.py).
+# Enforces all 5 Defined CXAS & > 90% Evaluation Gates before any `git push` completes.
 
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || (cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd))"
 cd "${REPO_ROOT}"
 
-exec "${REPO_ROOT}/scripts/pre_push_gate.sh"
+echo "========================================================================"
+echo "  Running Pre-Push Defined Gates for Totto, Mercedes F1 Fan Agent..."
+echo "========================================================================"
+
+if [[ -x "${REPO_ROOT}/.venv/bin/python" ]]; then
+  exec "${REPO_ROOT}/.venv/bin/python" "${REPO_ROOT}/scripts/run_defined_gates.py"
+else
+  exec python3 "${REPO_ROOT}/scripts/run_defined_gates.py"
+fi

@@ -37,7 +37,11 @@ uv run --no-project python "${HARNESS_SCRIPT}" .
 # ------------------------------------------------------------------------------
 echo ""
 echo "[Gate 3/5] Running Full Pytest Suite..."
-uv run --no-project pytest -q
+if [[ "${SKIP_PYTEST_IN_GATE_4:-0}" == "1" ]]; then
+  echo "  SKIP_PYTEST_IN_GATE_4=1 active (recursive test guard) — skipping nested pytest."
+else
+  uv run --no-project pytest -q
+fi
 
 # ------------------------------------------------------------------------------
 # Gate 4: >90% Evaluation Pass-Rate Threshold Gate Verification

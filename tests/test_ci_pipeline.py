@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import subprocess
 from typing import Any
 import pytest
 import yaml
@@ -614,3 +615,70 @@ class TestRepoIsSelfContainedForCI:
     ini = (PROJECT_ROOT / "pytest.ini").read_text(encoding="utf-8")
     assert "testpaths = tests evals" in ini
     assert ".agents" in ini
+
+  def test_git_push_to_local_bare_remote_executes_pre_push_gate_hook(
+      self, tmp_path: Path
+  ) -> None:
+    bare_remote = tmp_path / "github_mirror.git"
+    init_res = subprocess.run(
+        ["git", "init", "--bare", str(bare_remote)],
+        cwd=str(PROJECT_ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert init_res.returncode == 0, f"git init --bare failed: {init_res.stderr}"
+
+    env = dict(os.environ)
+    env["SKIP_PYTEST_IN_GATE_4"] = "1"
+
+    hook_res = subprocess.run(
+        [str(PROJECT_ROOT / ".githooks" / "pre-push"), "origin", str(bare_remote)],
+        cwd=str(PROJECT_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert hook_res.returncode == 0, (
+        f".githooks/pre-push failed:\nSTDOUT:\n{hook_res.stdout}\nSTDERR:\n{hook_res.stderr}"
+    )
+    assert "ALL 5 DEFINED GATES PASSED" in hook_res.stdout
+
+    push_res = subprocess.run(
+        [
+            "git",
+            "-c",
+            "core.hooksPath=.githooks",
+            "push",
+            str(bare_remote),
+            "HEAD:refs/heads/main",
+        ],
+        cwd=str(PROJECT_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert push_res.returncode == 0, (
+        f"git push failed:\nSTDOUT:\n{push_res.stdout}\nSTDERR:\n{push_res.stderr}"
+    )
+    combined_out = f"{push_res.stdout}\n{push_res.stderr}"
+    assert "ALL 5 DEFINED GATES PASSED" in combined_out
+
+    local_head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=str(PROJECT_ROOT),
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    remote_head = subprocess.run(
+        ["git", f"--git-dir={bare_remote}", "rev-parse", "refs/heads/main"],
+        cwd=str(PROJECT_ROOT),
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    assert remote_head == local_head
+
