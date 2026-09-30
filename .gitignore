@@ -68,6 +68,4 @@ eval-reports/*.tmp.json
 !tests/
 !docs/
 !.githooks/
-!eval-reports/gate_verification_report.json
-!eval-reports/GATE_VERIFICATION_REPORT.md
 
