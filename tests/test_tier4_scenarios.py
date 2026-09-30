@@ -306,7 +306,7 @@ def test_scenario_11_callback_evals_suite_passes_100_percent() -> None:
 
 def test_scenario_12_tool_evals_pydantic_schema_validation_passes() -> None:
   """E2E Journey 12: Validate goldens.yaml, simulations.yaml, and tool_tests.yaml against cxas_scrapi Pydantic schemas."""
-  from cxas_scrapi.evals.simulation_evals import LLMUserConversation
+  from cxas_scrapi.evals.simulation_evals import LLMUserConversation, Step
   from cxas_scrapi.evals.tool_evals import ToolTestCase
   from cxas_scrapi.utils.eval_utils import Conversations
 
@@ -316,8 +316,11 @@ def test_scenario_12_tool_evals_pydantic_schema_validation_passes() -> None:
 
   sims_raw = load_yaml_file(EVALS_DIR / "simulations" / "simulations.yaml")
   for sim_entry in sims_raw.get("evals", []):
-    parsed_sim = LLMUserConversation.model_validate(sim_entry)
-    assert len(parsed_sim.steps) >= 1
+    if hasattr(LLMUserConversation, "model_validate"):
+      parsed_steps = LLMUserConversation.model_validate(sim_entry).steps
+    else:
+      parsed_steps = [Step.model_validate(s) for s in sim_entry.get("steps", [])]
+    assert len(parsed_steps) >= 1
 
   tool_tests_raw = load_yaml_file(EVALS_DIR / "tool_tests" / "tool_tests.yaml")
   for tt_entry in tool_tests_raw.get("tests", []):

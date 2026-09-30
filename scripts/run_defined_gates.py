@@ -452,7 +452,7 @@ def run_gate_5_evaluation_pass_rate_gate(
   top_failures: list[dict[str, Any]] = []
 
   from cxas_scrapi.evals.callback_evals import CallbackEvals
-  from cxas_scrapi.evals.simulation_evals import LLMUserConversation
+  from cxas_scrapi.evals.simulation_evals import LLMUserConversation, Step
   from cxas_scrapi.evals.tool_evals import ToolEvals, ToolTestCase
   from cxas_scrapi.utils.eval_utils import Conversations
 
@@ -596,11 +596,14 @@ def run_gate_5_evaluation_pass_rate_gate(
   for sim_entry in sim_entries:
     sim_name = str(sim_entry.get("name", "unknown_sim"))
     try:
-      validated_sim = LLMUserConversation.model_validate(sim_entry)
+      if hasattr(LLMUserConversation, "model_validate"):
+        validated_steps = LLMUserConversation.model_validate(sim_entry).steps
+      else:
+        validated_steps = [Step.model_validate(s) for s in sim_entry.get("steps", [])]
       if (
-          validated_sim.steps
+          validated_steps
           and sim_entry.get("expectations")
-          and all(s.goal and s.success_criteria for s in validated_sim.steps)
+          and all(s.goal and s.success_criteria for s in validated_steps)
       ):
         sim_passed += 1
       else:
