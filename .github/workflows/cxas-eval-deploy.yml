@@ -74,6 +74,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
+          cache-dependency-glob: "requirements*.txt"
 
       - name: Install dependencies and cxas-scrapi CLI
         run: |
@@ -137,6 +138,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
+          cache-dependency-glob: "requirements*.txt"
 
       - name: Authenticate to Google Cloud via Workload Identity Federation
         id: auth
@@ -289,6 +291,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
+          cache-dependency-glob: "requirements*.txt"
 
       - name: Authenticate to Google Cloud via Workload Identity Federation
         id: auth
