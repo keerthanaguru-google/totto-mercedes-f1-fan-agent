@@ -632,6 +632,11 @@ class TestRepoIsSelfContainedForCI:
         check=False,
     )
     assert init_res.returncode == 0, f"git init --bare failed: {init_res.stderr}"
+    subprocess.run(
+        ["git", f"--git-dir={bare_remote}", "config", "receive.shallowUpdate", "true"],
+        cwd=str(PROJECT_ROOT),
+        check=True,
+    )
 
     env = dict(os.environ)
     env["SKIP_PYTEST_IN_GATE_4"] = "1"
