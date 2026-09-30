@@ -1,0 +1,77 @@
+name: "CXAS PR Cleanup (totto_mercedes_f1_agent)"
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Pull Request number for the ephemeral [CI] PR-<number> app to delete"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'gcp-ces-chirp-dev' }}
+  LOCATION: ${{ vars.GCP_LOCATION || 'us-central1' }}
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'gcp-ces-chirp-dev' }}
+  GCP_LOCATION: ${{ vars.GCP_LOCATION || 'us-central1' }}
+  GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+  GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT || secrets.GCP_SERVICE_ACCOUNT }}
+
+jobs:
+  cleanup-totto-mercedes-f1-agent:
+    name: "Cleanup Ephemeral PR Evaluation App"
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.merged == true ||
+      github.event.pull_request.closed == true ||
+      github.event.action == 'closed'
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT || secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install cxas-scrapi CLI
+        run: |
+          if [ -f pyproject.toml ]; then
+            uv sync
+          else
+            uv venv
+            wget -q https://storage.googleapis.com/gassets-api-ai/ces-client-libraries/v1beta/ces-v1beta-py.tar
+            uv pip install ces-v1beta-py.tar --quiet
+            rm -f ces-v1beta-py.tar
+            uv pip install cxas-scrapi
+          fi
+
+      - name: Run Cleanup
+        run: |
+          uv run cxas delete --display-name "[CI] PR-${{ github.event.pull_request.number || inputs.pr_number }} totto_mercedes_f1_agent" --project-id ${{ vars.GCP_PROJECT_ID || 'gcp-ces-chirp-dev' }} --location ${{ vars.GCP_LOCATION || 'us-central1' }}

@@ -1,0 +1,18 @@
+# CXAS Linter Configuration for Totto, Mercedes F1 Fan Agent
+app_dir: cxas_app/totto_mercedes_f1_agent
+evals_dir: evals/
+
+project:
+  app_dir: cxas_app/totto_mercedes_f1_agent
+  evals_dir: evals/
+
+rules: {}
+
+options: {}
+
+ignore:
+  - "**/__pycache__/**"
+  - "**/test_*.py"
+  - "tests/**"
+  - ".agents/**"
+  - ".venv/**"

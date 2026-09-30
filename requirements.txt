@@ -1,0 +1,12 @@
+# Runtime + test dependencies for the Totto Mercedes F1 CXAS agent.
+#
+# NOTE: google-cloud-ces is NOT on PyPI. CI (and local setup) must first install
+# it from the CES client library tarball before installing this file:
+#   wget -q https://storage.googleapis.com/gassets-api-ai/ces-client-libraries/v1beta/ces-v1beta-py.tar
+#   uv pip install ces-v1beta-py.tar
+#   uv pip install -r requirements.txt
+cxas-scrapi>=1.8.0
+pytest>=8
+pyyaml>=6
+pydantic>=2
+requests>=2.31

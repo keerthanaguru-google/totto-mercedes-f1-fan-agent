@@ -1,0 +1,392 @@
+name: "CXAS Eval & Gate Deploy (Totto Mercedes F1 Agent)"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      gcp_project_id:
+        description: "Target GCP Project ID"
+        required: false
+        default: "gcp-ces-chirp-dev"
+        type: string
+      gcp_location:
+        description: "Target GCP CES Location"
+        required: false
+        default: "us-central1"
+        type: string
+      target_app_id:
+        description: "Target CES App ID or Display Name for deployment"
+        required: false
+        default: "keerthanaguru-totto-mercedes-f1-agent"
+        type: string
+      eval_runs:
+        description: "Number of evaluation trials per golden/simulation"
+        required: false
+        default: "5"
+        type: string
+      threshold:
+        description: "Minimum pass rate ratio required to pass gate (strictly > threshold)"
+        required: false
+        default: "0.90"
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+# Serialize runs per ref so two pushes never race each other into the shared
+# staging/prod CES apps. Never cancel an in-flight deploy.
+concurrency:
+  group: cxas-eval-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT_ID: ${{ inputs.gcp_project_id || vars.GCP_PROJECT_ID || 'gcp-ces-chirp-dev' }}
+  GCP_LOCATION: ${{ inputs.gcp_location || vars.GCP_LOCATION || 'us-central1' }}
+  APP_DIR: cxas_app/totto_mercedes_f1_agent
+  EVAL_THRESHOLD: ${{ inputs.threshold || vars.EVAL_THRESHOLD || '0.90' }}
+  EVAL_RUNS: ${{ inputs.eval_runs || vars.EVAL_RUNS || '5' }}
+  GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER || vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+  GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT || vars.GCP_SERVICE_ACCOUNT }}
+  # The foundry harness is vendored into the repo so ubuntu-latest runners are
+  # self-contained (no external home-directory skill dependency on the runner).
+  FOUNDRY_SCRIPTS: .agents/skills/cxas-agent-foundry/scripts
+
+jobs:
+  lint-and-unit-test:
+    name: "Stage 1: CXAS Lint & Local Unit Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Install dependencies and cxas-scrapi CLI
+        run: |
+          set -euo pipefail
+          if [ -f pyproject.toml ]; then
+            uv sync
+          else
+            uv venv
+            wget -q https://storage.googleapis.com/gassets-api-ai/ces-client-libraries/v1beta/ces-v1beta-py.tar
+            uv pip install ces-v1beta-py.tar --quiet
+            rm -f ces-v1beta-py.tar
+            if [ -f requirements.txt ]; then
+              uv pip install -r requirements.txt
+            else
+              uv pip install cxas-scrapi pytest pyyaml pydantic requests
+            fi
+          fi
+
+      - name: Verify vendored foundry harness is present
+        run: |
+          set -euo pipefail
+          for f in lint-harness.py run-and-report.py gate-check.py config.py; do
+            test -f "${FOUNDRY_SCRIPTS}/${f}" || { echo "::error::Missing vendored harness script: ${FOUNDRY_SCRIPTS}/${f}"; exit 1; }
+          done
+          test -f gecx-config.json || { echo "::error::gecx-config.json missing at repo root (required by foundry scripts)"; exit 1; }
+
+      - name: Run CXAS Linter
+        run: |
+          set -euo pipefail
+          uv run cxas lint --app-dir cxas_app/totto_mercedes_f1_agent
+          uv run python "${FOUNDRY_SCRIPTS}/lint-harness.py" .
+
+      - name: Run local pytest suite (unit, tool, callback, and schema tests)
+        run: |
+          set -euo pipefail
+          uv run pytest tests -v
+
+  evaluate-and-gate:
+    name: "Stage 2: CES Evaluation Suite & >90% Pass-Rate Gate"
+    needs: lint-and-unit-test
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      STAGING_APP_ID: ${{ vars.CES_STAGING_APP_ID || vars.CES_APP_ID || 'keerthanaguru-totto-mercedes-f1-agent-staging' }}
+    outputs:
+      gate_passed: ${{ steps.eval_gate.outputs.gate_passed }}
+      pass_rate: ${{ steps.eval_gate.outputs.pass_rate }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Authenticate to Google Cloud via Workload Identity Federation
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install dependencies and cxas-scrapi CLI
+        run: |
+          set -euo pipefail
+          if [ -f pyproject.toml ]; then
+            uv sync
+          else
+            uv venv
+            wget -q https://storage.googleapis.com/gassets-api-ai/ces-client-libraries/v1beta/ces-v1beta-py.tar
+            uv pip install ces-v1beta-py.tar --quiet
+            rm -f ces-v1beta-py.tar
+            if [ -f requirements.txt ]; then
+              uv pip install -r requirements.txt
+            else
+              uv pip install cxas-scrapi pytest pyyaml pydantic requests
+            fi
+          fi
+
+      - name: Push candidate build to staging evaluation app
+        id: staging_push
+        run: |
+          set -euo pipefail
+          PUSH_LOG="$(mktemp)"
+          # First try to overwrite the existing staging app (--to <display name>).
+          # `cxas push --to X` exits 1 with "App 'X' not found." when X does not
+          # exist yet, so on a first-time run fall back to creating it with
+          # displayName flag (creation only happens when the target flag is omitted).
+          if uv run cxas push \
+              --app-dir ${{ env.APP_DIR }} \
+              --to "${STAGING_APP_ID}" \
+              --project-id ${{ env.GCP_PROJECT_ID }} \
+              --location ${{ env.GCP_LOCATION }} 2>&1 | tee "$PUSH_LOG"; then
+            echo "Pushed to existing staging app '${STAGING_APP_ID}'."
+          elif grep -q "not found" "$PUSH_LOG"; then
+            echo "::notice::Staging app '${STAGING_APP_ID}' does not exist yet; creating it."
+            uv run cxas push \
+              --app-dir ${{ env.APP_DIR }} \
+              --display-name "${STAGING_APP_ID}" \
+              --project-id ${{ env.GCP_PROJECT_ID }} \
+              --location ${{ env.GCP_LOCATION }} 2>&1 | tee "$PUSH_LOG"
+          else
+            echo "::error::cxas push to staging app '${STAGING_APP_ID}' failed."
+            exit 1
+          fi
+          # Capture the resolved app resource name so the eval harness targets
+          # the app we just pushed (gecx-config.json may still say
+          # 'pending-first-push').
+          APP_NAME="$(grep -oE 'projects/[^ /]+/locations/[^ /]+/apps/[^ /]+' "$PUSH_LOG" | tail -n1 || true)"
+          if [ -z "$APP_NAME" ]; then
+            echo "::error::Could not determine the CES app resource name from cxas push output."
+            exit 1
+          fi
+          echo "app_name=${APP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Resolved staging app: ${APP_NAME}"
+
+      - name: Point foundry config at the staging app
+        run: |
+          set -euo pipefail
+          uv run python - "${{ steps.staging_push.outputs.app_name }}" <<'PY'
+          import json, sys
+          app_name = sys.argv[1]
+          app_id = app_name.rsplit("/apps/", 1)[1]
+          project = app_name.split("/")[1]
+          location = app_name.split("/")[3]
+          with open("gecx-config.json") as f:
+              cfg = json.load(f)
+          cfg.update({
+              "deployed_app_id": app_id,
+              "app_id": app_id,
+              "gecx_app_id": app_id,
+              "gcp_project_id": project,
+              "project_id": project,
+              "location": location,
+              "gcp_location": location,
+          })
+          with open("gecx-config.json", "w") as f:
+              json.dump(cfg, f, indent=2)
+              f.write("\n")
+          print(f"gecx-config.json now targets {app_name}")
+          PY
+
+      - name: Run Golden, Simulation, Tool, and Callback Evaluations
+        run: |
+          set -euo pipefail
+          mkdir -p eval-reports
+          uv run python "${FOUNDRY_SCRIPTS}/run-and-report.py" \
+            --message "CI Eval (${{ github.sha }})" \
+            --runs ${{ env.EVAL_RUNS }} \
+            --priority P0,P1 \
+            --json-summary eval-reports/ci-summary.json
+
+      - name: Enforce >90% Evaluation Pass-Rate Gate
+        id: eval_gate
+        run: |
+          set -euo pipefail
+          uv run python scripts/check_eval_threshold.py \
+            --summary eval-reports/ci-summary.json \
+            --threshold ${{ env.EVAL_THRESHOLD }} \
+            --comparison gt
+
+      - name: Upload evaluation summary artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cxas-eval-summary-${{ github.sha }}
+          path: eval-reports/ci-summary.json
+          if-no-files-found: warn
+
+      - name: Fail loudly if the evaluation gate did not pass
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.eval_gate.outputs.gate_passed }}" != "true" ]; then
+            echo "::error title=Evaluation gate failed::Pass rate '${{ steps.eval_gate.outputs.pass_rate || 'n/a' }}' did not exceed threshold ${{ env.EVAL_THRESHOLD }} (or the eval run errored). Deployment to the target project is blocked."
+            exit 1
+          fi
+          echo "Evaluation gate passed with pass rate ${{ steps.eval_gate.outputs.pass_rate }} (> ${{ env.EVAL_THRESHOLD }})."
+
+  push-to-project:
+    name: "Stage 3: Push Verified Agent to Target GCP Project"
+    needs: evaluate-and-gate
+    if: (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && needs.evaluate-and-gate.outputs.gate_passed == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROD_APP_ID: ${{ inputs.target_app_id || vars.CES_PROD_APP_ID || 'keerthanaguru-totto-mercedes-f1-agent' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Authenticate to Google Cloud via Workload Identity Federation
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install dependencies and cxas-scrapi CLI
+        run: |
+          set -euo pipefail
+          if [ -f pyproject.toml ]; then
+            uv sync
+          else
+            uv venv
+            wget -q https://storage.googleapis.com/gassets-api-ai/ces-client-libraries/v1beta/ces-v1beta-py.tar
+            uv pip install ces-v1beta-py.tar --quiet
+            rm -f ces-v1beta-py.tar
+            if [ -f requirements.txt ]; then
+              uv pip install -r requirements.txt
+            else
+              uv pip install cxas-scrapi pytest pyyaml pydantic requests
+            fi
+          fi
+
+      - name: Push verified agent to target GCP project
+        id: prod_push
+        run: |
+          set -euo pipefail
+          PUSH_LOG="$(mktemp)"
+          if uv run cxas push \
+              --app-dir ${{ env.APP_DIR }} \
+              --to "${PROD_APP_ID}" \
+              --project-id ${{ env.GCP_PROJECT_ID }} \
+              --location ${{ env.GCP_LOCATION }} 2>&1 | tee "$PUSH_LOG"; then
+            echo "Pushed to existing app '${PROD_APP_ID}'."
+          elif grep -q "not found" "$PUSH_LOG"; then
+            echo "::notice::Target app '${PROD_APP_ID}' does not exist yet; creating it."
+            uv run cxas push \
+              --app-dir ${{ env.APP_DIR }} \
+              --display-name "${PROD_APP_ID}" \
+              --project-id ${{ env.GCP_PROJECT_ID }} \
+              --location ${{ env.GCP_LOCATION }} 2>&1 | tee "$PUSH_LOG"
+          else
+            echo "::error::cxas push to target app '${PROD_APP_ID}' failed."
+            exit 1
+          fi
+          APP_NAME="$(grep -oE 'projects/[^ /]+/locations/[^ /]+/apps/[^ /]+' "$PUSH_LOG" | tail -n1 || true)"
+          if [ -z "$APP_NAME" ]; then
+            echo "::error::Could not determine the CES app resource name from cxas push output."
+            exit 1
+          fi
+          echo "app_name=${APP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Resolved target app: ${APP_NAME}"
+
+      - name: Point foundry config at the deployed app
+        run: |
+          set -euo pipefail
+          uv run python - "${{ steps.prod_push.outputs.app_name }}" <<'PY'
+          import json, sys
+          app_name = sys.argv[1]
+          app_id = app_name.rsplit("/apps/", 1)[1]
+          project = app_name.split("/")[1]
+          location = app_name.split("/")[3]
+          with open("gecx-config.json") as f:
+              cfg = json.load(f)
+          cfg.update({
+              "deployed_app_id": app_id,
+              "app_id": app_id,
+              "gecx_app_id": app_id,
+              "gcp_project_id": project,
+              "project_id": project,
+              "location": location,
+              "gcp_location": location,
+          })
+          with open("gecx-config.json", "w") as f:
+              json.dump(cfg, f, indent=2)
+              f.write("\n")
+          print(f"gecx-config.json now targets {app_name}")
+          PY
+
+      - name: Run post-push 6-gate verification check
+        run: |
+          set -euo pipefail
+          uv run python "${FOUNDRY_SCRIPTS}/gate-check.py" --skip-push
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Stage 3: Push Verified Agent"
+            echo ""
+            echo "- **Evaluation pass rate (Stage 2):** ${{ needs.evaluate-and-gate.outputs.pass_rate }} (gate: > ${{ env.EVAL_THRESHOLD }})"
+            echo "- **Target GCP project:** \`${{ env.GCP_PROJECT_ID }}\` (\`${{ env.GCP_LOCATION }}\`)"
+            echo "- **Target app:** \`${{ steps.prod_push.outputs.app_name || env.PROD_APP_ID }}\`"
+            echo "- **Commit:** \`${{ github.sha }}\`"
+            echo "- **Status:** ${{ job.status }}"
+          } >> "$GITHUB_STEP_SUMMARY"

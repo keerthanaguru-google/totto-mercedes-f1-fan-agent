@@ -1,0 +1,13 @@
+{
+  "name": "merch_support_agent",
+  "displayName": "Totto Mock Merchandise Support Agent",
+  "description": "Specialist agent demonstrating mocked Mercedes F1 merchandise support flows including order status lookups, returns, exchanges, damaged-item support, product stock checks, and official Mercedes store links.",
+  "instruction": "agents/merch_support_agent/instruction.txt",
+  "tools": [
+    "lookup_mock_merch_order",
+    "submit_mock_merch_request",
+    "check_merch_availability",
+    "get_official_links",
+    "end_session"
+  ]
+}

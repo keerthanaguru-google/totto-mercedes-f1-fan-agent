@@ -1,0 +1,10 @@
+{
+  "name": "lookup_mock_merch_order",
+  "displayName": "lookup_mock_merch_order",
+  "pythonFunction": {
+    "name": "lookup_mock_merch_order",
+    "pythonCode": "tools/lookup_mock_merch_order/python_function/python_code.py",
+    "description": "Looks up a mocked Mercedes-AMG PETRONAS F1 merchandise order by order number only, returning simulated shipment status, items, tracking details, and mock demonstration disclosures."
+  },
+  "executionType": "SYNCHRONOUS"
+}

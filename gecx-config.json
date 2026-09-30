@@ -1,0 +1,15 @@
+{
+  "project_id": "gcp-ces-chirp-dev",
+  "location": "us-central1",
+  "app_id": "pending-first-push",
+  "deployed_app_id": "pending-first-push",
+  "app_dir": "cxas_app/totto_mercedes_f1_agent",
+  "app_display_name": "keerthanaguru-totto-mercedes-f1-agent",
+  "gcs_bucket": "gs://ces-chirp-dev-data-bucket",
+  "gcp_project_id": "gcp-ces-chirp-dev",
+  "gcp_location": "us-central1",
+  "gecx_app_id": "pending-first-push",
+  "agent_name": "totto_mercedes_f1_agent",
+  "display_name_prefix": "keerthanaguru",
+  "Notification": ""
+}

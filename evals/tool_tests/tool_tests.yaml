@@ -1,0 +1,261 @@
+tests:
+  - name: get_race_schedule_next_without_location
+    tool: get_race_schedule
+    args:
+      race_name: "next"
+      user_location: ""
+    expectations:
+      response:
+        - path: "$.status"
+          operator: "equals"
+          value: "success"
+        - path: "$.data_freshness"
+          operator: "equals"
+          value: "latest_available"
+        - path: "$.needs_user_location"
+          operator: "equals"
+          value: true
+        - path: "$.race.race_name"
+          operator: "equals"
+          value: "Miami Grand Prix"
+        - path: "$.agent_action"
+          operator: "is_not_null"
+
+  - name: get_race_schedule_silverstone_localized_london
+    tool: get_race_schedule
+    args:
+      race_name: "silverstone"
+      user_location: "London"
+    expectations:
+      response:
+        - path: "$.status"
+          operator: "equals"
+          value: "success"
+        - path: "$.needs_user_location"
+          operator: "equals"
+          value: false
+        - path: "$.race.race_name"
+          operator: "equals"
+          value: "British Grand Prix"
+        - path: "$.localized_sessions.Race"
+          operator: "contains"
+          value: "BST"
+
+  - name: get_race_schedule_all_calendar_overview
+    tool: get_race_schedule
+    args:
+      race_name: "all"
+      user_location: ""
+    expectations:
+      response:
+        - path: "$.status"
+          operator: "equals"
+          value: "success"
+        - path: "$.season"
+          operator: "equals"
+          value: 2026
+
+  - name: get_race_schedule_unknown_race_error
+    tool: get_race_schedule
+    args:
+      race_name: "Narnia Grand Prix"
+      user_location: "London"
+    expectations:
+      response:
+        - path: "$.status"
+          operator: "equals"
+          value: "error"
+        - path: "$.agent_action"
+          operator: "is_not_null"
+
+  - name: get_driver_standings_mercedes_default
+    tool: get_driver_standings
+    args:
+      category: "drivers"
+      team_filter: "Mercedes"
+    expectations:
+      response:
+        - path: "$.status"
+          operator: "equals"
+          value: "success"
+        - path: "$.data_freshness"
+          operator: "equals"
+          value: "latest_available"
+        - path: "$.mercedes_constructor.team"
+          operator: "equals"
+          value: "Mercedes-AMG PETRONAS"
+
+  - name: get_driver_standings_constructors_category
+    tool: get_driver_standings
+    args:
+      category: "constructors"
+      team_filter: "all"
+    expectations:
+      response:
+        - path: "$.status"
+          operator: "equals"
+          value: "success"
+        - path: "$.category"
+          operator: "equals"
+          value: "constructors"
+
+  - name: get_driver_standings_invalid_category_error
+    tool: get_driver_standings
+    args:
+      category: "invalid_category"
+      team_filter: "Mercedes"
+    expectations:
+      response:
+        - path: "$.status"
+          operator: "equals"
+          value: "error"
+        - path: "$.agent_action"
+          operator: "is_not_null"
+
+  - name: lookup_mock_merch_order_valid_merc_1001
+    tool: lookup_mock_merch_order
+    args:
+      order_number: "MERC-1001"
+    expectations:
+      response:
+        - path: "$.status"
+          operator: "equals"
+          value: "success"
+        - path: "$.is_mock"
+          operator: "equals"
+          value: true
+        - path: "$.order.status"
+          operator: "equals"
+          value: "Delivered"
+
+  - name: lookup_mock_merch_order_numeric_alias_1002
+    tool: lookup_mock_merch_order
+    args:
+      order_number: "1002"
+    expectations:
+      response:
+        - path: "$.status"
+          operator: "equals"
+          value: "success"
+        - path: "$.order_number"
+          operator: "equals"
+          value: "MERC-1002"
+        - path: "$.is_mock"
+          operator: "equals"
+          value: true
+
+  - name: lookup_mock_merch_order_not_found_error
+    tool: lookup_mock_merch_order
+    args:
+      order_number: "MERC-9999"
+    expectations:
+      response:
+        - path: "$.status"
+          operator: "equals"
+          value: "error"
+        - path: "$.is_mock"
+          operator: "equals"
+          value: true
+        - path: "$.agent_action"
+          operator: "is_not_null"
+
+  - name: submit_mock_merch_request_damaged_item_success
+    tool: submit_mock_merch_request
+    args:
+      order_number: "MERC-1001"
+      request_type: "damaged_item"
+      item_name: "George Russell Cap"
+      reason: "Damaged brim"
+    expectations:
+      response:
+        - path: "$.status"
+          operator: "equals"
+          value: "success"
+        - path: "$.is_mock"
+          operator: "equals"
+          value: true
+        - path: "$.reference_id"
+          operator: "equals"
+          value: "MOCK-REQ-1001-DAMAGED_ITEM"
+
+  - name: submit_mock_merch_request_invalid_type_error
+    tool: submit_mock_merch_request
+    args:
+      order_number: "MERC-1001"
+      request_type: "invalid_type"
+      item_name: ""
+      reason: ""
+    expectations:
+      response:
+        - path: "$.status"
+          operator: "equals"
+          value: "error"
+        - path: "$.is_mock"
+          operator: "equals"
+          value: true
+        - path: "$.agent_action"
+          operator: "is_not_null"
+
+  - name: check_merch_availability_in_stock_polo
+    tool: check_merch_availability
+    args:
+      item_query: "team polo"
+      size: "L"
+    expectations:
+      response:
+        - path: "$.status"
+          operator: "equals"
+          value: "success"
+        - path: "$.is_mock"
+          operator: "equals"
+          value: true
+        - path: "$.in_stock"
+          operator: "equals"
+          value: true
+        - path: "$.official_store_url"
+          operator: "equals"
+          value: "https://shop.mercedesamgf1.com/"
+
+  - name: check_merch_availability_out_of_stock_size_error
+    tool: check_merch_availability
+    args:
+      item_query: "team polo"
+      size: "XXL"
+    expectations:
+      response:
+        - path: "$.status"
+          operator: "equals"
+          value: "error"
+        - path: "$.in_stock"
+          operator: "equals"
+          value: false
+        - path: "$.agent_action"
+          operator: "is_not_null"
+
+  - name: get_official_links_tickets_category
+    tool: get_official_links
+    args:
+      category: "tickets"
+    expectations:
+      response:
+        - path: "$.status"
+          operator: "equals"
+          value: "success"
+        - path: "$.category"
+          operator: "equals"
+          value: "tickets"
+        - path: "$.url"
+          operator: "equals"
+          value: "https://www.formula1.com/en/tickets"
+
+  - name: get_official_links_invalid_category_error
+    tool: get_official_links
+    args:
+      category: "betting"
+    expectations:
+      response:
+        - path: "$.status"
+          operator: "equals"
+          value: "error"
+        - path: "$.agent_action"
+          operator: "is_not_null"

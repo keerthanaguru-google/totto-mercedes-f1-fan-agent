@@ -1,0 +1,79 @@
+{
+  "name": "totto_mercedes_f1_agent",
+  "displayName": "keerthanaguru-totto-mercedes-f1-agent",
+  "description": "Totto, a voice-first conversational fan agent for Mercedes Formula 1 covering race schedules, standings, history, official ticketing guidance, and mocked merchandise support.",
+  "rootAgent": "totto_root_agent",
+  "tools": [
+    "get_race_schedule",
+    "get_driver_standings",
+    "lookup_mock_merch_order",
+    "submit_mock_merch_request",
+    "check_merch_availability",
+    "get_official_links",
+    "end_session"
+  ],
+  "modelSettings": {
+    "model": "gemini-3.1-flash-live"
+  },
+  "languageSettings": {
+    "defaultLanguageCode": "en-US"
+  },
+  "timeZoneSettings": {
+    "timeZone": "America/New_York"
+  },
+  "toolExecutionMode": "PARALLEL",
+  "evaluationMetricsThresholds": {
+    "goldenEvaluationMetricsThresholds": {
+      "turnLevelMetricsThresholds": {
+        "semanticSimilaritySuccessThreshold": 3,
+        "overallToolInvocationCorrectnessThreshold": 1
+      },
+      "toolMatchingSettings": {
+        "extraToolCallBehavior": "ALLOW"
+      }
+    },
+    "goldenHallucinationMetricBehavior": "DISABLED"
+  },
+  "variableDeclarations": [
+    {
+      "name": "favorite_team",
+      "description": "The user's prioritized Formula 1 team context, defaulting to Mercedes.",
+      "schema": {
+        "type": "STRING",
+        "required": []
+      }
+    },
+    {
+      "name": "is_mock_mode",
+      "description": "Flag indicating that merchandise order and inventory support flows run in mock demonstration mode.",
+      "schema": {
+        "type": "STRING",
+        "required": []
+      }
+    },
+    {
+      "name": "user_location",
+      "description": "The user's city, region, or timezone used to localize Formula 1 race and session times.",
+      "schema": {
+        "type": "STRING",
+        "required": []
+      }
+    },
+    {
+      "name": "order_number",
+      "description": "The user's merchandise order number used in mocked order lookups and support requests.",
+      "schema": {
+        "type": "STRING",
+        "required": []
+      }
+    },
+    {
+      "name": "initialized",
+      "description": "Session state marker indicating whether default variables have been initialized by before_agent_callback.",
+      "schema": {
+        "type": "STRING",
+        "required": []
+      }
+    }
+  ]
+}

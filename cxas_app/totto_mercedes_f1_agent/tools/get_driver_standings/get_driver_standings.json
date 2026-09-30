@@ -1,0 +1,10 @@
+{
+  "name": "get_driver_standings",
+  "displayName": "get_driver_standings",
+  "pythonFunction": {
+    "name": "get_driver_standings",
+    "pythonCode": "tools/get_driver_standings/python_function/python_code.py",
+    "description": "Retrieves Formula 1 World Drivers' and Constructors' Championship standings and recent race results with a priority focus on Mercedes-AMG PETRONAS F1 (George Russell #63 and Kimi Antonelli #12)."
+  },
+  "executionType": "SYNCHRONOUS"
+}

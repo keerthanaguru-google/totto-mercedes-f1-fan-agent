@@ -1,0 +1,11 @@
+{
+  "name": "race_info_agent",
+  "displayName": "Totto Race Information & Standings Agent",
+  "description": "Specialist agent for Formula 1 race schedules, practice/qualifying/sprint/race session start times, circuit weather, driver and constructor championship standings, and Mercedes-AMG PETRONAS on-track performance.",
+  "instruction": "agents/race_info_agent/instruction.txt",
+  "tools": [
+    "get_race_schedule",
+    "get_driver_standings",
+    "end_session"
+  ]
+}

@@ -1,0 +1,55 @@
+# Python virtual environments
+.venv/
+venv/
+ENV/
+
+# Python bytecode & caches
+__pycache__/
+*.pyc
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Agent teamwork scratch files (keep .agents/skills/ tracked)
+.agents/teamwork/
+!.agents/skills/
+
+# Evaluation reports, holdout vaults, and downloaded wheel archives
+.holdout_vault/
+eval-reports/
+*.tar
+
+# Environment & credentials
+environment.json
+.env
+*.pem
+*credentials*.json
+
+# OS & editor files
+.DS_Store
+.vscode/
+.idea/
+
+# Root teamwork scratch markdown files
+/ORIGINAL_REQUEST.md
+/PROJECT.md
+/TEST_INFRA.md
+/TEST_READY.md
+ORIGINAL_REQUEST.md
+PROJECT.md
+TEST_INFRA.md
+TEST_READY.md
+
+# Packaging metadata
+*.egg-info
+*.egg-info/
+
+# Additional env/secret/log patterns
+.env.*
+gh-token*
+*.log
+
+# Foundry multi-project pointer (CI resolves the project via CWD gecx-config.json)
+.active-project

@@ -1,0 +1,10 @@
+{
+  "name": "get_official_links",
+  "displayName": "get_official_links",
+  "pythonFunction": {
+    "name": "get_official_links",
+    "pythonCode": "tools/get_official_links/python_function/python_code.py",
+    "description": "Returns verified official web destinations for Formula 1 ticketing, the official Mercedes-AMG PETRONAS F1 store, team website, fan resources, and social channels."
+  },
+  "executionType": "SYNCHRONOUS"
+}
