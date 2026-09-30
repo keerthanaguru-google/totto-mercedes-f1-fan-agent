@@ -79,18 +79,10 @@ jobs:
       - name: Install dependencies and cxas-scrapi CLI
         run: |
           set -euo pipefail
-          if [ -f pyproject.toml ]; then
-            uv sync
+          if [ -f requirements.txt ]; then
+            uv pip install --system -r requirements.txt
           else
-            uv venv
-            wget -q https://storage.googleapis.com/gassets-api-ai/ces-client-libraries/v1beta/ces-v1beta-py.tar
-            uv pip install ces-v1beta-py.tar --quiet
-            rm -f ces-v1beta-py.tar
-            if [ -f requirements.txt ]; then
-              uv pip install -r requirements.txt
-            else
-              uv pip install cxas-scrapi pytest pyyaml pydantic requests
-            fi
+            uv pip install --system "google-cloud-ces>=0.7.1" cxas-scrapi pytest pyyaml pydantic requests
           fi
 
       - name: Verify vendored foundry harness is present
@@ -104,13 +96,13 @@ jobs:
       - name: Run CXAS Linter
         run: |
           set -euo pipefail
-          uv run cxas lint --app-dir cxas_app/totto_mercedes_f1_agent
-          uv run python "${FOUNDRY_SCRIPTS}/lint-harness.py" .
+          cxas lint --app-dir cxas_app/totto_mercedes_f1_agent
+          python "${FOUNDRY_SCRIPTS}/lint-harness.py" .
 
       - name: Run local pytest suite (unit, tool, callback, and schema tests)
         run: |
           set -euo pipefail
-          uv run pytest tests -v
+          pytest tests -v
 
   evaluate-and-gate:
     name: "Stage 2: CES Evaluation Suite & >90% Pass-Rate Gate"
@@ -153,18 +145,10 @@ jobs:
       - name: Install dependencies and cxas-scrapi CLI
         run: |
           set -euo pipefail
-          if [ -f pyproject.toml ]; then
-            uv sync
+          if [ -f requirements.txt ]; then
+            uv pip install --system -r requirements.txt
           else
-            uv venv
-            wget -q https://storage.googleapis.com/gassets-api-ai/ces-client-libraries/v1beta/ces-v1beta-py.tar
-            uv pip install ces-v1beta-py.tar --quiet
-            rm -f ces-v1beta-py.tar
-            if [ -f requirements.txt ]; then
-              uv pip install -r requirements.txt
-            else
-              uv pip install cxas-scrapi pytest pyyaml pydantic requests
-            fi
+            uv pip install --system "google-cloud-ces>=0.7.1" cxas-scrapi pytest pyyaml pydantic requests
           fi
 
       - name: Push candidate build to staging evaluation app
@@ -176,7 +160,7 @@ jobs:
           # `cxas push --to X` exits 1 with "App 'X' not found." when X does not
           # exist yet, so on a first-time run fall back to creating it with
           # displayName flag (creation only happens when the target flag is omitted).
-          if uv run cxas push \
+          if cxas push \
               --app-dir ${{ env.APP_DIR }} \
               --to "${STAGING_APP_ID}" \
               --project-id ${{ env.GCP_PROJECT_ID }} \
@@ -184,7 +168,7 @@ jobs:
             echo "Pushed to existing staging app '${STAGING_APP_ID}'."
           elif grep -q "not found" "$PUSH_LOG"; then
             echo "::notice::Staging app '${STAGING_APP_ID}' does not exist yet; creating it."
-            uv run cxas push \
+            cxas push \
               --app-dir ${{ env.APP_DIR }} \
               --display-name "${STAGING_APP_ID}" \
               --project-id ${{ env.GCP_PROJECT_ID }} \
@@ -207,7 +191,7 @@ jobs:
       - name: Point foundry config at the staging app
         run: |
           set -euo pipefail
-          uv run python - "${{ steps.staging_push.outputs.app_name }}" <<'PY'
+          python - "${{ steps.staging_push.outputs.app_name }}" <<'PY'
           import json, sys
           app_name = sys.argv[1]
           app_id = app_name.rsplit("/apps/", 1)[1]
@@ -234,7 +218,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p eval-reports
-          uv run python "${FOUNDRY_SCRIPTS}/run-and-report.py" \
+          python "${FOUNDRY_SCRIPTS}/run-and-report.py" \
             --message "CI Eval (${{ github.sha }})" \
             --runs ${{ env.EVAL_RUNS }} \
             --priority P0,P1 \
@@ -244,7 +228,7 @@ jobs:
         id: eval_gate
         run: |
           set -euo pipefail
-          uv run python scripts/check_eval_threshold.py \
+          python scripts/check_eval_threshold.py \
             --summary eval-reports/ci-summary.json \
             --threshold ${{ env.EVAL_THRESHOLD }} \
             --comparison gt
@@ -306,18 +290,10 @@ jobs:
       - name: Install dependencies and cxas-scrapi CLI
         run: |
           set -euo pipefail
-          if [ -f pyproject.toml ]; then
-            uv sync
+          if [ -f requirements.txt ]; then
+            uv pip install --system -r requirements.txt
           else
-            uv venv
-            wget -q https://storage.googleapis.com/gassets-api-ai/ces-client-libraries/v1beta/ces-v1beta-py.tar
-            uv pip install ces-v1beta-py.tar --quiet
-            rm -f ces-v1beta-py.tar
-            if [ -f requirements.txt ]; then
-              uv pip install -r requirements.txt
-            else
-              uv pip install cxas-scrapi pytest pyyaml pydantic requests
-            fi
+            uv pip install --system "google-cloud-ces>=0.7.1" cxas-scrapi pytest pyyaml pydantic requests
           fi
 
       - name: Push verified agent to target GCP project
@@ -325,7 +301,7 @@ jobs:
         run: |
           set -euo pipefail
           PUSH_LOG="$(mktemp)"
-          if uv run cxas push \
+          if cxas push \
               --app-dir ${{ env.APP_DIR }} \
               --to "${PROD_APP_ID}" \
               --project-id ${{ env.GCP_PROJECT_ID }} \
@@ -333,7 +309,7 @@ jobs:
             echo "Pushed to existing app '${PROD_APP_ID}'."
           elif grep -q "not found" "$PUSH_LOG"; then
             echo "::notice::Target app '${PROD_APP_ID}' does not exist yet; creating it."
-            uv run cxas push \
+            cxas push \
               --app-dir ${{ env.APP_DIR }} \
               --display-name "${PROD_APP_ID}" \
               --project-id ${{ env.GCP_PROJECT_ID }} \
@@ -353,7 +329,7 @@ jobs:
       - name: Point foundry config at the deployed app
         run: |
           set -euo pipefail
-          uv run python - "${{ steps.prod_push.outputs.app_name }}" <<'PY'
+          python - "${{ steps.prod_push.outputs.app_name }}" <<'PY'
           import json, sys
           app_name = sys.argv[1]
           app_id = app_name.rsplit("/apps/", 1)[1]
@@ -379,7 +355,7 @@ jobs:
       - name: Run post-push 6-gate verification check
         run: |
           set -euo pipefail
-          uv run python "${FOUNDRY_SCRIPTS}/gate-check.py" --skip-push
+          python "${FOUNDRY_SCRIPTS}/gate-check.py" --skip-push
 
       - name: Job summary
         if: always()

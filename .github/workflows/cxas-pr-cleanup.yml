@@ -63,16 +63,13 @@ jobs:
 
       - name: Install cxas-scrapi CLI
         run: |
-          if [ -f pyproject.toml ]; then
-            uv sync
+          set -euo pipefail
+          if [ -f requirements.txt ]; then
+            uv pip install --system -r requirements.txt
           else
-            uv venv
-            wget -q https://storage.googleapis.com/gassets-api-ai/ces-client-libraries/v1beta/ces-v1beta-py.tar
-            uv pip install ces-v1beta-py.tar --quiet
-            rm -f ces-v1beta-py.tar
-            uv pip install cxas-scrapi
+            uv pip install --system "google-cloud-ces>=0.7.1" cxas-scrapi
           fi
 
       - name: Run Cleanup
         run: |
-          uv run cxas delete --display-name "[CI] PR-${{ github.event.pull_request.number || inputs.pr_number }} totto_mercedes_f1_agent" --project-id ${{ vars.GCP_PROJECT_ID || 'gcp-ces-chirp-dev' }} --location ${{ vars.GCP_LOCATION || 'us-central1' }}
+          cxas delete --display-name "[CI] PR-${{ github.event.pull_request.number || inputs.pr_number }} totto_mercedes_f1_agent" --project-id ${{ vars.GCP_PROJECT_ID || 'gcp-ces-chirp-dev' }} --location ${{ vars.GCP_LOCATION || 'us-central1' }}

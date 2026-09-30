@@ -420,12 +420,10 @@ class TestGitHubWorkflowStructure:
     assert "github.ref" in str(concurrency.get("group"))
     assert concurrency.get("cancel-in-progress") is False
 
-  def test_workflow_installs_requirements_txt_after_ces_tarball(self) -> None:
+  def test_workflow_installs_requirements_txt_from_pypi(self) -> None:
     wf = self._load_workflow()
     assert (PROJECT_ROOT / "requirements.txt").is_file()
-    assert not (PROJECT_ROOT / "pyproject.toml").exists(), (
-        "pyproject.toml would route CI to `uv sync` and skip the CES tarball install"
-    )
+    assert not (PROJECT_ROOT / "pyproject.toml").exists()
     for job_id, job in wf["jobs"].items():
       install_steps = [
           s for s in job.get("steps", [])
@@ -433,11 +431,10 @@ class TestGitHubWorkflowStructure:
       ]
       assert len(install_steps) == 1, f"Job '{job_id}' must have exactly one install step"
       script = install_steps[0]["run"]
-      tar_idx = script.index("ces-v1beta-py.tar")
-      req_idx = script.index("uv pip install -r requirements.txt")
-      assert tar_idx < req_idx, f"Job '{job_id}' must install the CES tarball before requirements.txt"
+      assert "ces-v1beta-py.tar" not in script
+      assert "uv pip install --system -r requirements.txt" in script
       # Fallback list kept for repos without requirements.txt.
-      assert "uv pip install cxas-scrapi pytest pyyaml pydantic requests" in script
+      assert 'uv pip install --system "google-cloud-ces>=0.7.1" cxas-scrapi pytest pyyaml pydantic requests' in script
 
   def test_workflow_push_steps_retry_with_display_name_on_first_run(self) -> None:
     wf = self._load_workflow()
@@ -608,7 +605,14 @@ class TestRepoIsSelfContainedForCI:
 
   def test_requirements_txt_pins_core_dependencies(self) -> None:
     req = (PROJECT_ROOT / "requirements.txt").read_text(encoding="utf-8")
-    for dep in ("cxas-scrapi>=1.8.0", "pytest>=8", "pyyaml>=6", "pydantic>=2", "requests>=2.31"):
+    for dep in (
+        "google-cloud-ces>=0.7.1",
+        "cxas-scrapi>=1.8.0",
+        "pytest>=8",
+        "pyyaml>=6",
+        "pydantic>=2",
+        "requests>=2.31",
+    ):
       assert dep in req, f"requirements.txt missing {dep}"
 
   def test_pytest_ini_scopes_collection_away_from_vendored_skill(self) -> None:
