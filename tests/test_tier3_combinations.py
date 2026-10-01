@@ -56,10 +56,10 @@ def test_comb_01_callback_state_to_schedule_missing_location_then_localized() ->
 
 
 def test_comb_02_merch_order_lookup_to_damaged_request_to_availability_check() -> None:
-  """Pairwise: lookup_mock_merch_order -> submit_mock_merch_request -> check_merch_availability."""
+  """Pairwise: lookup_merch_order -> submit_merch_request -> check_merch_availability."""
   cb = load_before_agent_callback()
-  lookup_order = load_tool_function("lookup_mock_merch_order")
-  submit_request = load_tool_function("submit_mock_merch_request")
+  lookup_order = load_tool_function("lookup_merch_order")
+  submit_request = load_tool_function("submit_merch_request")
   check_avail = load_tool_function("check_merch_availability")
 
   ctx = DummyCallbackContext({})
@@ -72,7 +72,7 @@ def test_comb_02_merch_order_lookup_to_damaged_request_to_availability_check() -
   assert ctx.state["order_number"] == "MERC-1002"
   order_res = lookup_order(order_number=ctx.state["order_number"])
   assert order_res["status"] == "success"
-  assert order_res["is_mock"] is True
+  assert "mock" not in str(order_res).lower()
   assert order_res["order"]["return_eligible"] is True
   first_item = order_res["order"]["items"][0]
   item_name = first_item.get("name", str(first_item)) if isinstance(first_item, dict) else str(first_item)
@@ -85,8 +85,8 @@ def test_comb_02_merch_order_lookup_to_damaged_request_to_availability_check() -
       reason="Exchange size L for XL",
   )
   assert req_res["status"] == "success"
-  assert req_res["is_mock"] is True
-  assert "MOCK-REQ" in req_res["reference_id"] and "1002" in req_res["reference_id"]
+  assert "mock" not in str(req_res).lower()
+  assert "MERC-REQ" in req_res["reference_id"] and "1002" in req_res["reference_id"]
 
   # Step 3: Check replacement size XL availability
   avail_res = check_avail(item_query="polo", size="XL")
@@ -178,7 +178,7 @@ def test_comb_07_app_variable_declarations_match_instruction_placeholders() -> N
       used_across_instructions.add(match)
 
   # Ensure core session variables are actively referenced in instructions
-  for core_var in ("favorite_team", "is_mock_mode", "user_location", "order_number", "current_date"):
+  for core_var in ("favorite_team", "user_location", "order_number", "current_date"):
     assert core_var in used_across_instructions, f"Variable {{{core_var}}} not referenced in any instruction.txt"
 
 
@@ -305,9 +305,9 @@ def test_comb_12_dual_jsonpath_parity_across_all_6_tools_success_and_error() -> 
   cases = [
       ("get_race_schedule", {"race_name": "miami", "user_location": "London"}, {"race_name": "Narnia Grand Prix"}),
       ("get_driver_standings", {"category": "drivers", "team_filter": "Mercedes"}, {"category": "invalid_category"}),
-      ("lookup_mock_merch_order", {"order_number": "MERC-1001"}, {"order_number": "MERC-9999"}),
+      ("lookup_merch_order", {"order_number": "MERC-1001"}, {"order_number": "MERC-9999"}),
       (
-          "submit_mock_merch_request",
+          "submit_merch_request",
           {"order_number": "MERC-1001", "request_type": "return"},
           {"order_number": "MERC-9999", "request_type": "return"},
       ),
@@ -345,10 +345,10 @@ def test_comb_13_goldens_tool_calls_cross_validated_against_registered_tools_and
           assert target_agent in valid_agents, f"Invalid transfer target {target_agent}"
 
 
-def test_comb_14_all_merch_tools_enforce_mock_flag_and_disclaimer_invariants() -> None:
-  """Pairwise: lookup_mock_merch_order, submit_mock_merch_request, check_merch_availability mock invariants."""
-  lookup_fn = load_tool_function("lookup_mock_merch_order")
-  submit_fn = load_tool_function("submit_mock_merch_request")
+def test_comb_14_all_tools_instructions_and_evals_enforce_no_mock_wording_invariant() -> None:
+  """Pairwise: Verify zero occurrences of 'mock' or 'mocked' across tools, instructions, and eval YAMLs."""
+  lookup_fn = load_tool_function("lookup_merch_order")
+  submit_fn = load_tool_function("submit_merch_request")
   avail_fn = load_tool_function("check_merch_availability")
 
   for res in (
@@ -359,14 +359,23 @@ def test_comb_14_all_merch_tools_enforce_mock_flag_and_disclaimer_invariants() -
       avail_fn("cap", "One Size"),
       avail_fn("polo", "XXL"),
   ):
-    assert res.get("is_mock") is True, f"Merch tool output missing is_mock=True: {res}"
-    assert "mock" in str(res).lower()
+    assert "mock" not in str(res).lower(), f"Merch tool output must not contain 'mock': {res}"
+
+  for agent_name in EXPECTED_AGENTS:
+    instr_text = (AGENTS_DIR / agent_name / "instruction.txt").read_text(encoding="utf-8")
+    agent_json = (AGENTS_DIR / agent_name / f"{agent_name}.json").read_text(encoding="utf-8")
+    assert "mock" not in instr_text.lower(), f"{agent_name}/instruction.txt contains 'mock'"
+    assert "mock" not in agent_json.lower(), f"{agent_name}.json contains 'mock'"
+
+  for eval_rel in ("goldens/goldens.yaml", "simulations/simulations.yaml", "tool_tests/tool_tests.yaml"):
+    eval_text = (EVALS_DIR / eval_rel).read_text(encoding="utf-8")
+    assert "mock" not in eval_text.lower(), f"evals/{eval_rel} contains 'mock'"
 
 
-def test_comb_15_all_3_mock_orders_support_all_3_request_types_matrix() -> None:
+def test_comb_15_all_3_merch_orders_support_all_3_request_types_matrix() -> None:
   """Pairwise 3x3 matrix: (MERC-1001, MERC-1002, MERC-1003) x (return, exchange, damaged_item)."""
-  lookup_fn = load_tool_function("lookup_mock_merch_order")
-  submit_fn = load_tool_function("submit_mock_merch_request")
+  lookup_fn = load_tool_function("lookup_merch_order")
+  submit_fn = load_tool_function("submit_merch_request")
 
   for order_id in ("MERC-1001", "MERC-1002", "MERC-1003"):
     ord_res = lookup_fn(order_id)

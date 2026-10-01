@@ -529,31 +529,31 @@ class TestF10OfficialLinksBoundaries:
 
 
 # ==============================================================================
-# F11: Mock Merch Order Lookup Boundaries (5 test cases)
+# F11: Merch Order Lookup Boundaries (5 test cases)
 # ==============================================================================
 class TestF11OrderLookupBoundaries:
   """Tests F11 boundaries: MERC-9999, 9999, empty/whitespace, numeric shorthand, lowercase merc-1001."""
 
   def test_f11_boundary_non_existent_order_merc_9999_and_9999_return_error(self) -> None:
-    lookup_mock_merch_order = load_tool_function("lookup_mock_merch_order")
+    lookup_merch_order = load_tool_function("lookup_merch_order")
     for not_found_id in ("MERC-9999", "9999", "#9999", "MERC-0000", "ORD-1234"):
-      res = lookup_mock_merch_order(order_number=not_found_id)
+      res = lookup_merch_order(order_number=not_found_id)
       assert res["status"] == "error"
-      assert res["is_mock"] is True
+      assert "mock" not in str(res).lower()
       assert res.get("sample_order_numbers") == ["MERC-1001", "MERC-1002", "MERC-1003"]
       assert isinstance(res.get("agent_action"), str) and len(res["agent_action"]) > 15
       assert res.get("result", {}).get("status") == "error"
 
   def test_f11_boundary_empty_and_whitespace_order_number_returns_error(self) -> None:
-    lookup_mock_merch_order = load_tool_function("lookup_mock_merch_order")
+    lookup_merch_order = load_tool_function("lookup_merch_order")
     for empty_id in ("", "   ", "\n\t", "#"):
-      res = lookup_mock_merch_order(order_number=empty_id)
+      res = lookup_merch_order(order_number=empty_id)
       assert res["status"] == "error"
-      assert res["is_mock"] is True
+      assert "mock" not in str(res).lower()
       assert isinstance(res.get("agent_action"), str) and len(res["agent_action"]) > 15
 
   def test_f11_boundary_numeric_shorthand_normalization(self) -> None:
-    lookup_mock_merch_order = load_tool_function("lookup_mock_merch_order")
+    lookup_merch_order = load_tool_function("lookup_merch_order")
     for shorthand, expected_norm in (
         ("1001", "MERC-1001"),
         ("  1001  ", "MERC-1001"),
@@ -561,19 +561,19 @@ class TestF11OrderLookupBoundaries:
         ("  1002 ", "MERC-1002"),
         ("1003", "MERC-1003"),
     ):
-      res = lookup_mock_merch_order(order_number=shorthand)
+      res = lookup_merch_order(order_number=shorthand)
       assert res["status"] == "success"
       assert res["order_number"] == expected_norm
       assert res["order"]["order_number"] == expected_norm
 
   def test_f11_boundary_lowercase_and_padded_order_number_normalization(self) -> None:
-    lookup_mock_merch_order = load_tool_function("lookup_mock_merch_order")
+    lookup_merch_order = load_tool_function("lookup_merch_order")
     for raw_id, expected_norm in (
         ("merc-1001", "MERC-1001"),
         ("  merc-1002  ", "MERC-1002"),
         ("Merc-1003", "MERC-1003"),
     ):
-      res = lookup_mock_merch_order(order_number=raw_id)
+      res = lookup_merch_order(order_number=raw_id)
       assert res["status"] == "success"
       assert res["order_number"] == expected_norm
 
@@ -585,42 +585,42 @@ class TestF11OrderLookupBoundaries:
 
 
 # ==============================================================================
-# F12: Mock Merch Submit Request & Payment Refusal Boundaries (5 test cases)
+# F12: Merch Submit Request & Payment Refusal Boundaries (5 test cases)
 # ==============================================================================
 class TestF12SubmitRequestBoundariesAndPaymentRefusal:
   """Tests F12 boundaries: unknown order ID, invalid request_type, aliases, payment refusal."""
 
   def test_f12_boundary_unknown_order_merc_9999_or_empty_returns_error(self) -> None:
-    submit_mock_merch_request = load_tool_function("submit_mock_merch_request")
+    submit_merch_request = load_tool_function("submit_merch_request")
     for bad_order in ("MERC-9999", "9999", "", "   "):
-      res = submit_mock_merch_request(order_number=bad_order, request_type="return")
+      res = submit_merch_request(order_number=bad_order, request_type="return")
       assert res["status"] == "error"
-      assert res["is_mock"] is True
+      assert "mock" not in str(res).lower()
       assert res.get("sample_order_numbers") == ["MERC-1001", "MERC-1002", "MERC-1003"]
       assert isinstance(res.get("agent_action"), str) and len(res["agent_action"]) > 15
       assert res.get("result", {}).get("status") == "error"
 
   def test_f12_boundary_invalid_request_type_returns_error_and_supported_types(self) -> None:
-    submit_mock_merch_request = load_tool_function("submit_mock_merch_request")
+    submit_merch_request = load_tool_function("submit_merch_request")
     for bad_type in ("invalid_type", "cancel_subscription", "charge_card", ""):
-      res = submit_mock_merch_request(order_number="MERC-1001", request_type=bad_type)
+      res = submit_merch_request(order_number="MERC-1001", request_type=bad_type)
       assert res["status"] == "error"
-      assert res["is_mock"] is True
+      assert "mock" not in str(res).lower()
       assert res.get("supported_request_types") == ["return", "exchange", "damaged_item"]
       assert isinstance(res.get("agent_action"), str) and len(res["agent_action"]) > 15
 
   def test_f12_boundary_request_type_aliases_damaged_damage_replace_normalize_cleanly(self) -> None:
-    submit_mock_merch_request = load_tool_function("submit_mock_merch_request")
+    submit_merch_request = load_tool_function("submit_merch_request")
     for alias in ("damaged", "damage", "replace", "DAMAGED_ITEM"):
-      res = submit_mock_merch_request(order_number="1001", request_type=alias)
+      res = submit_merch_request(order_number="1001", request_type=alias)
       assert res["status"] == "success"
       assert res["order_number"] == "MERC-1001"
       assert res["request_type"] == "damaged_item"
 
-  def test_f12_boundary_merch_agent_instruction_forbids_credit_card_and_real_refunds(self) -> None:
+  def test_f12_boundary_merch_agent_instruction_forbids_credit_card_and_billing_collection(self) -> None:
     text = (AGENTS_DIR / "merch_support_agent" / "instruction.txt").read_text(encoding="utf-8").lower()
     assert "credit card" in text
-    assert "refund" in text
+    assert "billing" in text or "payment" in text
 
   def test_f12_boundary_goldens_and_simulations_cover_real_payment_refusal(self) -> None:
     goldens_text = (EVALS_DIR / "goldens" / "goldens.yaml").read_text(encoding="utf-8").lower()
@@ -630,7 +630,7 @@ class TestF12SubmitRequestBoundariesAndPaymentRefusal:
 
 
 # ==============================================================================
-# F13: Mock Merch Availability Out-of-Stock & Unknown Item Boundaries (5 test cases)
+# F13: Merch Availability Out-of-Stock & Unknown Item Boundaries (5 test cases)
 # ==============================================================================
 class TestF13MerchAvailabilityOutOfStockBoundaries:
   """Tests F13 boundaries: out-of-stock sizes (XXL, XS), signed race suit, unknown/empty item."""
@@ -640,7 +640,7 @@ class TestF13MerchAvailabilityOutOfStockBoundaries:
     for oos_size in ("XXL", "XS", "XXS", "3XL"):
       res = check_merch_availability(item_query="polo", size=oos_size)
       assert res["status"] == "error"
-      assert res["is_mock"] is True
+      assert "mock" not in str(res).lower()
       assert res["in_stock"] is False
       assert res["available_sizes"] == ["S", "M", "L", "XL"]
       assert res["official_store_url"] == "https://shop.mercedesamgf1.com/"
@@ -664,7 +664,7 @@ class TestF13MerchAvailabilityOutOfStockBoundaries:
     for oos_item in ("signed race suit", "Limited Edition W15 Signed Race Suit", "race suit"):
       res = check_merch_availability(item_query=oos_item, size="")
       assert res["status"] == "error"
-      assert res["is_mock"] is True
+      assert "mock" not in str(res).lower()
       assert res["in_stock"] is False
       assert res["official_store_url"] == "https://shop.mercedesamgf1.com/"
       assert isinstance(res.get("agent_action"), str) and len(res["agent_action"]) > 15
@@ -674,7 +674,7 @@ class TestF13MerchAvailabilityOutOfStockBoundaries:
     for bad_query in ("", "   ", "ferrari toaster", " submarine "):
       res = check_merch_availability(item_query=bad_query, size="")
       assert res["status"] == "error"
-      assert res["is_mock"] is True
+      assert "mock" not in str(res).lower()
       assert res["in_stock"] is False
       assert res["official_store_url"] == "https://shop.mercedesamgf1.com/"
       assert isinstance(res.get("agent_action"), str) and len(res["agent_action"]) > 15

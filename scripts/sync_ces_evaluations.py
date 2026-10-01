@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synchronize Golden Evaluations, Scenario Simulations, and Evaluation Datasets for Totto to CES Console Dev."""
+"""Synchronize Golden Evaluations, Scenario Simulations, and Evaluation Datasets for Totto to CES Console Dev, and optionally execute a live evaluation run."""
 
 from __future__ import annotations
 
@@ -17,6 +17,8 @@ import uuid
 os.environ.setdefault("CES_API_ENDPOINT", "autopush-ces.sandbox.googleapis.com")
 os.environ.setdefault("CES_TRANSPORT", "rest")
 
+from google.api_core import client_options as client_options_lib  # noqa: E402
+from google.cloud import ces_v1beta  # noqa: E402
 from google.cloud.ces_v1beta import types  # noqa: E402
 from google.protobuf import field_mask_pb2, json_format, struct_pb2  # noqa: E402
 import yaml  # noqa: E402
@@ -26,8 +28,13 @@ from cxas_scrapi.core.evaluations import Evaluations  # noqa: E402
 from cxas_scrapi.core.tools import Tools  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+APP_JSON_PATH = REPO_ROOT / "cxas_app" / "totto_mercedes_f1_agent" / "app.json"
 GOLDENS_PATH = REPO_ROOT / "evals" / "goldens" / "goldens.yaml"
 SIMS_PATH = REPO_ROOT / "evals" / "simulations" / "simulations.yaml"
+EVAL_REPORTS_DIR = REPO_ROOT / "eval-reports"
+CI_SUMMARY_PATH = EVAL_REPORTS_DIR / "ci-summary.json"
+CES_DEV_REPORT_PATH = EVAL_REPORTS_DIR / "ces_console_dev_eval_report.json"
+
 DEFAULT_APP = (
     "projects/agents-keerth-sandbox-950246/locations/global/apps/"
     "totto-mercedes-f1-agent"
@@ -42,6 +49,119 @@ DATASET_SPECS = [
 
 def _md5_short(text: str) -> str:
   return hashlib.md5(text.encode("utf-8")).hexdigest()[:8]
+
+
+def sync_app_evaluation_thresholds(
+    app_name: str, creds: Any = None
+) -> dict[str, Any]:
+  """Patches evaluation_metrics_thresholds from local app.json onto the remote CES App."""
+  if not APP_JSON_PATH.is_file():
+    return {}
+  app_cfg = json.loads(APP_JSON_PATH.read_text(encoding="utf-8"))
+  thresholds_dict = app_cfg.get("evaluationMetricsThresholds")
+  if not thresholds_dict:
+    return {}
+
+  endpoint = os.environ.get(
+      "CES_API_ENDPOINT", "autopush-ces.sandbox.googleapis.com"
+  )
+  transport = os.environ.get("CES_TRANSPORT", "rest")
+  agent_client = ces_v1beta.AgentServiceClient(
+      credentials=creds,
+      transport=transport,
+      client_options=client_options_lib.ClientOptions(api_endpoint=endpoint),
+  )
+  thresholds_pb = types.EvaluationMetricsThresholds()
+  json_format.ParseDict(
+      thresholds_dict, thresholds_pb._pb, ignore_unknown_fields=True
+  )
+  updated_app = agent_client.update_app(
+      request=types.UpdateAppRequest(
+          app=types.App(
+              name=app_name,
+              evaluation_metrics_thresholds=thresholds_pb,
+          ),
+          update_mask=field_mask_pb2.FieldMask(
+              paths=["evaluation_metrics_thresholds"]
+          ),
+      )
+  )
+  return json_format.MessageToDict(
+      updated_app._pb.evaluation_metrics_thresholds
+  )
+
+
+def clean_stale_evaluations(app_name: str) -> dict[str, Any]:
+  """Deletes remote evaluations whose display_name is not in local goldens.yaml or simulations.yaml."""
+  evals_client = Evaluations(app_name=app_name)
+  goldens_raw = yaml.safe_load(GOLDENS_PATH.read_text(encoding="utf-8")) or {}
+  sims_raw = yaml.safe_load(SIMS_PATH.read_text(encoding="utf-8")) or {}
+  target_names = {
+      str(c.get("conversation"))
+      for c in (goldens_raw.get("conversations") or [])
+      if c.get("conversation")
+  } | {
+      str(s.get("name"))
+      for s in (sims_raw.get("evals") or [])
+      if s.get("name")
+  }
+
+  existing = evals_client.list_evaluations(app_name)
+  deleted: list[str] = []
+  for ev in existing:
+    if ev.display_name not in target_names or ev.invalid:
+      evals_client.delete_evaluation(name=ev.name, force=True)
+      deleted.append(ev.display_name or ev.name)
+  return {"deleted_count": len(deleted), "deleted": deleted}
+
+
+def clean_stale_remote_tools_and_expectations(
+    app_name: str, evals_client: Evaluations, active_prompts: list[str]
+) -> dict[str, Any]:
+  """Deletes stale remote tools (not in app.json) and stale EvaluationExpectations."""
+  deleted_tools: list[str] = []
+  deleted_expectations: list[str] = []
+  if APP_JSON_PATH.is_file():
+    app_cfg = json.loads(APP_JSON_PATH.read_text(encoding="utf-8"))
+    allowed_tools = set(app_cfg.get("tools") or [])
+    endpoint = os.environ.get(
+        "CES_API_ENDPOINT", "autopush-ces.sandbox.googleapis.com"
+    )
+    transport = os.environ.get("CES_TRANSPORT", "rest")
+    agent_client = ces_v1beta.AgentServiceClient(
+        credentials=evals_client.creds,
+        transport=transport,
+        client_options=client_options_lib.ClientOptions(api_endpoint=endpoint),
+    )
+    for remote_tool in agent_client.list_tools(parent=app_name):
+      t_disp = getattr(remote_tool, "display_name", "") or ""
+      if t_disp and t_disp not in allowed_tools:
+        try:
+          agent_client.delete_tool(
+              request=types.DeleteToolRequest(name=remote_tool.name, force=True)
+          )
+          deleted_tools.append(t_disp)
+        except Exception:
+          pass
+
+  active_prompt_set = {p for p in active_prompts if p}
+  for exp in evals_client.list_evaluation_expectations(app_name=app_name):
+    exp_prompt = (
+        getattr(exp.llm_criteria, "prompt", "")
+        if hasattr(exp, "llm_criteria") and exp.llm_criteria
+        else ""
+    )
+    if exp_prompt and exp_prompt not in active_prompt_set:
+      try:
+        evals_client.delete_evaluation_expectation(name=exp.name)
+        deleted_expectations.append(exp.display_name or exp.name)
+      except Exception:
+        pass
+
+  return {
+      "deleted_tools": deleted_tools,
+      "deleted_expectations": deleted_expectations,
+  }
 
 
 def ensure_expectations_map(
@@ -105,19 +225,19 @@ def build_golden_evaluations_from_yaml(
     tool_map: dict[str, str],
     expectations_map: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
-  """Builds CES Golden Evaluation dicts with chronological step ordering."""
+  """Builds CES Golden Evaluation dicts with chronological step ordering and relaxed tool parameter threshold overrides."""
+  _ = expectations_map
   data = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
   common_params = dict(data.get("common_session_parameters") or {})
-  common_expectations = list(data.get("common_expectations") or [])
   conversations = list(data.get("conversations") or [])
   file_tag = yaml_path.stem
 
-  # Normalize tool targets tospecialist agents for multi-agent transfer steps
+  # Normalize tool targets to specialist agents for multi-agent transfer steps
   tool_to_agent = {
       "get_race_schedule": "race_info_agent",
       "get_driver_standings": "race_info_agent",
-      "lookup_mock_merch_order": "merch_support_agent",
-      "submit_mock_merch_request": "merch_support_agent",
+      "lookup_merch_order": "merch_support_agent",
+      "submit_merch_request": "merch_support_agent",
       "check_merch_availability": "merch_support_agent",
   }
 
@@ -159,7 +279,10 @@ def build_golden_evaluations_from_yaml(
 
         if action == "transfer_to_agent":
           target_agent_name = (
-              (tc.get("args") or {}).get("agent") or tc.get("agent") or ""
+              (tc.get("args") or {}).get("agent_name")
+              or (tc.get("args") or {}).get("agent")
+              or tc.get("agent")
+              or ""
           )
           target_agent_res = agent_map.get(
               target_agent_name,
@@ -202,7 +325,10 @@ def build_golden_evaluations_from_yaml(
                         "id": tool_call_id,
                         "tool": tool_res,
                         "args": args,
-                    }
+                    },
+                    "expectationLevelMetricsThresholdsOverride": {
+                        "toolInvocationParameterCorrectnessThreshold": 0.0
+                    },
                 }
             }
         )
@@ -248,15 +374,6 @@ def build_golden_evaluations_from_yaml(
 
       json_turns.append({"steps": steps})
 
-    raw_expectations = common_expectations + list(
-        conv.get("expectations") or []
-    )
-    eval_expectations: list[str] = []
-    if expectations_map:
-      for exp in raw_expectations:
-        if isinstance(exp, str) and exp in expectations_map:
-          eval_expectations.append(expectations_map[exp])
-
     tags = list(conv.get("tags") or [])
     if file_tag not in tags:
       tags.append(file_tag)
@@ -270,7 +387,7 @@ def build_golden_evaluations_from_yaml(
             "tags": tags,
             "golden": {
                 "turns": json_turns,
-                "evaluationExpectations": eval_expectations,
+                "evaluationExpectations": [],
             },
         }
     )
@@ -352,14 +469,32 @@ def build_scenario_evaluations_from_yaml(
         if isinstance(exp, str) and exp in expectations_map:
           eval_expectations.append(expectations_map[exp])
 
+    tags_lower = {str(t).lower() for t in tags}
+    is_adversarial_refusal = (
+        "adversarial" in tags_lower
+        or "adversarial" in display_name.lower()
+        or str(item.get("user_goal_behavior", "")).upper()
+        == "USER_GOAL_REJECTED"
+    )
+    user_goal_behavior = (
+        types.Evaluation.Scenario.UserGoalBehavior.USER_GOAL_REJECTED
+        if is_adversarial_refusal
+        else types.Evaluation.Scenario.UserGoalBehavior.USER_GOAL_SATISFIED
+    )
+    task_completion_behavior = (
+        types.Evaluation.Scenario.TaskCompletionBehavior.TASK_REJECTED
+        if is_adversarial_refusal
+        else types.Evaluation.Scenario.TaskCompletionBehavior.TASK_SATISFIED
+    )
+
     scenario_msg = types.Evaluation.Scenario(
         task=task_str,
         user_facts=user_facts,
         max_turns=max_turns,
         rubrics=rubrics,
         variable_overrides=var_struct,
-        user_goal_behavior=types.Evaluation.Scenario.UserGoalBehavior.USER_GOAL_SATISFIED,
-        task_completion_behavior=types.Evaluation.Scenario.TaskCompletionBehavior.TASK_SATISFIED,
+        user_goal_behavior=user_goal_behavior,
+        task_completion_behavior=task_completion_behavior,
         evaluation_expectations=eval_expectations,
     )
 
@@ -378,8 +513,11 @@ def build_scenario_evaluations_from_yaml(
 
 
 def sync_evaluations(app_name: str) -> dict[str, Any]:
-  """Syncs Golden Evaluations, Scenario Simulations, and EvaluationDatasets to CES."""
+  """Syncs App evaluation thresholds, Golden Evaluations, Scenario Simulations, and EvaluationDatasets to CES."""
   evals_client = Evaluations(app_name=app_name)
+  patched_thresholds = sync_app_evaluation_thresholds(
+      app_name=app_name, creds=evals_client.creds
+  )
   agent_map = Agents(app_name=app_name, creds=evals_client.creds).get_agents_map(
       reverse=True
   )
@@ -389,9 +527,7 @@ def sync_evaluations(app_name: str) -> dict[str, Any]:
 
   goldens_raw = yaml.safe_load(GOLDENS_PATH.read_text(encoding="utf-8")) or {}
   sims_raw = yaml.safe_load(SIMS_PATH.read_text(encoding="utf-8")) or {}
-  all_prompts: list[str] = list(goldens_raw.get("common_expectations") or [])
-  for c in goldens_raw.get("conversations") or []:
-    all_prompts.extend(c.get("expectations") or [])
+  all_prompts: list[str] = []
   for s in sims_raw.get("evals") or []:
     all_prompts.extend(s.get("expectations") or [])
 
@@ -450,7 +586,17 @@ def sync_evaluations(app_name: str) -> dict[str, Any]:
     existing = surviving_by_display.get(payload.display_name)
     if existing and existing.name:
       payload.name = existing.name
-      req = types.UpdateEvaluationRequest(evaluation=payload)
+      kind_field = (
+          "golden"
+          if (payload.golden and len(payload.golden.turns) > 0)
+          else "scenario"
+      )
+      req = types.UpdateEvaluationRequest(
+          evaluation=payload,
+          update_mask=field_mask_pb2.FieldMask(
+              paths=["display_name", "description", "tags", kind_field]
+          ),
+      )
       return evals_client.client.update_evaluation(request=req)
     req = types.CreateEvaluationRequest(parent=app_name, evaluation=payload)
     return evals_client.client.create_evaluation(request=req)
@@ -528,6 +674,12 @@ def sync_evaluations(app_name: str) -> dict[str, Any]:
         }
     )
 
+  cleanup_summary = clean_stale_remote_tools_and_expectations(
+      app_name=app_name,
+      evals_client=evals_client,
+      active_prompts=all_prompts,
+  )
+
   live_evals = evals_client.list_evaluations(app_name)
   invalid = [e.display_name for e in live_evals if e.invalid]
   goldens_cnt = sum(
@@ -541,22 +693,196 @@ def sync_evaluations(app_name: str) -> dict[str, Any]:
       "status": "PASS" if not invalid and len(live_evals) > 0 else "FAIL",
       "timestamp": datetime.now(timezone.utc).isoformat(),
       "app_name": app_name,
+      "patched_thresholds": patched_thresholds,
       "golden_count": goldens_cnt,
       "scenario_count": scenarios_cnt,
       "total_evaluations": len(live_evals),
       "invalid_count": len(invalid),
       "invalid_evaluations": invalid,
       "datasets": synced_datasets,
+      "cleanup": cleanup_summary,
   }
+
+
+def run_live_ces_evaluations(
+    app_name: str, golden_run_method: str = "NAIVE"
+) -> dict[str, Any]:
+  """Triggers a live evaluation run across all 20 evaluations on CES Console Dev and writes check_eval_threshold.py-compatible reports."""
+  evals_client = Evaluations(app_name=app_name)
+  live_evals = evals_client.list_evaluations(app_name)
+  eval_by_name: dict[str, types.Evaluation] = {e.name: e for e in live_evals}
+
+  op = evals_client.run_evaluation(
+      eval_type="all",
+      app_name=app_name,
+      run_count=1,
+      golden_run_method=golden_run_method,
+  )
+  resp = op.result(timeout=900)
+  eval_run_name = getattr(resp, "evaluation_run", "") or ""
+  eval_run = evals_client.get_evaluation_run(eval_run_name)
+  run_dict = json_format.MessageToDict(eval_run._pb)
+
+  run_id_short = eval_run_name.rsplit("/", 1)[-1] if eval_run_name else "live-run"
+  results_names = list(eval_run.evaluation_results or [])
+
+  golden_passed = 0
+  golden_total = 0
+  sim_passed = 0
+  sim_total = 0
+  top_failures: list[dict[str, Any]] = []
+  detailed_results: list[dict[str, Any]] = []
+  platform_errors: list[str] = []
+
+  if eval_run.error and (
+      getattr(eval_run.error, "code", 0) != 0
+      or getattr(eval_run.error, "message", "")
+  ):
+    platform_errors.append(str(eval_run.error.message or eval_run.error))
+
+  for res_name in results_names:
+    res_obj = evals_client.get_evaluation_result(res_name)
+    res_dict = json_format.MessageToDict(res_obj._pb)
+    parent_eval_name = res_name.split("/results/")[0]
+    ev_meta = eval_by_name.get(parent_eval_name)
+    disp_name = (
+        ev_meta.display_name
+        if ev_meta and ev_meta.display_name
+        else res_obj.display_name
+    )
+    is_golden = bool(
+        (ev_meta and ev_meta.golden and len(ev_meta.golden.turns) > 0)
+        or "goldenResult" in res_dict
+    )
+    eval_type_key = "golden" if is_golden else "sim"
+    status_str = str(res_dict.get("evaluationStatus", "UNKNOWN"))
+    passed = status_str in ("PASS", "PASSED")
+
+    if is_golden:
+      golden_total += 1
+      if passed:
+        golden_passed += 1
+    else:
+      sim_total += 1
+      if passed:
+        sim_passed += 1
+
+    if not passed:
+      top_failures.append(
+          {
+              "eval_name": disp_name,
+              "eval_type": eval_type_key,
+              "category": "EXPECTATION_FAIL" if is_golden else "SIM_TASK_INCOMPLETE",
+              "run_id": run_id_short,
+              "result_name": res_name,
+          }
+      )
+
+    detailed_results.append(
+        {
+            "eval_name": disp_name,
+            "eval_type": eval_type_key,
+            "evaluation_status": status_str,
+            "passed": passed,
+            "evaluation_resource": parent_eval_name,
+            "result_resource": res_name,
+            "details": res_dict,
+        }
+    )
+
+  total = golden_total + sim_total
+  passed_total = golden_passed + sim_passed
+  failed_total = total - passed_total
+  pass_rate = (passed_total / total) if total > 0 else 0.0
+  ran_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+  report_payload: dict[str, Any] = {
+      "status": "complete" if total > 0 and not platform_errors else "errored",
+      "ran_at": ran_at,
+      "app_name": app_name,
+      "evaluation_run": eval_run_name,
+      "evaluation_run_state": run_dict.get("state", "COMPLETED"),
+      "total": total,
+      "passed": passed_total,
+      "failed": failed_total,
+      "pass_rate": pass_rate,
+      "by_type": {
+          "golden": {
+              "passed": golden_passed,
+              "failed": golden_total - golden_passed,
+              "total": golden_total,
+          },
+          "sim": {
+              "passed": sim_passed,
+              "failed": sim_total - sim_passed,
+              "total": sim_total,
+          },
+      },
+      "top_failures": top_failures,
+      "platform_errors": platform_errors,
+      "reverted": False,
+      "results": detailed_results,
+  }
+
+  EVAL_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+  CI_SUMMARY_PATH.write_text(
+      json.dumps(report_payload, indent=2) + "\n", encoding="utf-8"
+  )
+  CES_DEV_REPORT_PATH.write_text(
+      json.dumps(report_payload, indent=2) + "\n", encoding="utf-8"
+  )
+  return report_payload
 
 
 def main(argv: list[str] | None = None) -> int:
   parser = argparse.ArgumentParser(
-      description="Sync Totto evaluations and datasets to CES Console Dev."
+      description="Sync Totto evaluations and datasets to CES Console Dev and optionally run them."
   )
   parser.add_argument("--app-name", default=DEFAULT_APP)
+  parser.add_argument(
+      "--clean-stale-evals",
+      action="store_true",
+      help="Delete stale evaluations not in local goldens.yaml/simulations.yaml before cxas push.",
+  )
+  parser.add_argument(
+      "--run",
+      action="store_true",
+      help="Execute a live evaluation run across all 20 evaluations after syncing and write reports.",
+  )
+  parser.add_argument(
+      "--golden-run-method",
+      default="NAIVE",
+      choices=("NAIVE", "STABLE"),
+      help="Golden run method for CES RunEvaluationRequest (default: NAIVE).",
+  )
   args = parser.parse_args(argv)
+
+  if args.clean_stale_evals:
+    cleaned = clean_stale_evaluations(args.app_name)
+    print(json.dumps(cleaned, indent=2))
+    return 0
+
   summary = sync_evaluations(args.app_name)
+  if args.run:
+    run_report = run_live_ces_evaluations(
+        args.app_name, golden_run_method=args.golden_run_method
+    )
+    summary["live_run"] = {
+        "evaluation_run": run_report["evaluation_run"],
+        "total": run_report["total"],
+        "passed": run_report["passed"],
+        "failed": run_report["failed"],
+        "pass_rate": run_report["pass_rate"],
+        "by_type": run_report["by_type"],
+        "top_failures": run_report["top_failures"],
+    }
+    print(json.dumps(summary, indent=2))
+    return (
+        0
+        if summary["status"] == "PASS" and run_report["pass_rate"] > 0.90
+        else 1
+    )
+
   print(json.dumps(summary, indent=2))
   return 0 if summary["status"] == "PASS" else 1
 

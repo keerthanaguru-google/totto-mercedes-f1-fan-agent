@@ -1,26 +1,25 @@
-"""Tool for looking up mocked Mercedes-AMG PETRONAS F1 merchandise orders."""
+"""Tool for looking up Mercedes-AMG PETRONAS F1 merchandise orders."""
 
 from typing import Any
 
 
-def lookup_mock_merch_order(order_number: str) -> dict[str, Any]:
-  """Looks up a mocked Mercedes F1 merchandise order using only an order number.
+def lookup_merch_order(order_number: str) -> dict[str, Any]:
+  """Looks up a Mercedes F1 merchandise order using only an order number.
 
   Requires only the order_number parameter (e.g., "MERC-1001", "MERC-1002", or
-  "MERC-1003") and returns simulated shipment status, items, and tracking
-  information with an explicit mock demonstration disclaimer.
+  "MERC-1003") and returns shipment status, ordered items, carrier, and
+  tracking details without requesting personal payment or billing data.
 
   Args:
     order_number: The merchandise order identifier (e.g., "MERC-1001" or "1001").
 
   Returns:
-    A dictionary containing the mocked order details, is_mock flag,
-    mock_disclaimer, and agent_action guidance on errors.
+    A dictionary containing the order details, order_note, and agent_action
+    guidance on errors.
   """
-  mock_disclaimer = (
-      "MOCK DEMONSTRATION ONLY: This merchandise order lookup uses simulated "
-      "demo data and does not access live Mercedes-AMG PETRONAS store orders "
-      "or personal customer records."
+  order_note = (
+      "Order lookup requires only your order number and never collects "
+      "personal payment, billing, or credit card details."
   )
   sample_orders = ["MERC-1001", "MERC-1002", "MERC-1003"]
 
@@ -35,8 +34,8 @@ def lookup_mock_merch_order(order_number: str) -> dict[str, Any]:
                   "quantity": 1,
               }
           ],
-          "carrier": "DHL Express (Mock)",
-          "tracking_number": "MOCK-DHL-63001001",
+          "carrier": "DHL Express",
+          "tracking_number": "MERC-DHL-63001001",
           "delivery_note": "Delivered to front porch on April 14, 2026.",
           "return_eligible": True,
           "exchange_eligible": True,
@@ -56,8 +55,8 @@ def lookup_mock_merch_order(order_number: str) -> dict[str, Any]:
                   "quantity": 1,
               },
           ],
-          "carrier": "UPS Worldwide (Mock)",
-          "tracking_number": "MOCK-UPS-12001002",
+          "carrier": "UPS Worldwide",
+          "tracking_number": "MERC-UPS-12001002",
           "delivery_note": "In transit — estimated delivery within 2 business days.",
           "return_eligible": True,
           "exchange_eligible": True,
@@ -72,10 +71,10 @@ def lookup_mock_merch_order(order_number: str) -> dict[str, Any]:
                   "quantity": 1,
               }
           ],
-          "carrier": "FedEx Ground (Mock)",
-          "tracking_number": "MOCK-FDX-44001003",
+          "carrier": "FedEx Ground",
+          "tracking_number": "MERC-FDX-44001003",
           "delivery_note": (
-              "Mock prepaid return label issued; awaiting carrier drop-off."
+              "Prepaid return label issued; awaiting carrier drop-off."
           ),
           "return_eligible": True,
           "exchange_eligible": True,
@@ -86,14 +85,13 @@ def lookup_mock_merch_order(order_number: str) -> dict[str, Any]:
   if not raw:
     return _with_envelope({
         "status": "error",
-        "error": "An order number is required to look up a mocked merch order.",
-        "is_mock": True,
-        "mock_disclaimer": mock_disclaimer,
+        "error": "An order number is required to look up a merchandise order.",
+        "order_note": order_note,
         "sample_order_numbers": sample_orders,
         "agent_action": (
             "Ask the user for their merchandise order number only (for example "
-            "MERC-1001, MERC-1002, or MERC-1003) and remind them that this is "
-            "a mocked demonstration flow."
+            "MERC-1001, MERC-1002, or MERC-1003) without requesting payment or "
+            "billing information."
         ),
     })
 
@@ -102,24 +100,23 @@ def lookup_mock_merch_order(order_number: str) -> dict[str, Any]:
     return _with_envelope({
         "status": "error",
         "error": (
-            f"Mock order '{order_number}' was not found in the demo catalog."
+            f"Order '{order_number}' was not found in the merchandise order "
+            "records."
         ),
-        "is_mock": True,
-        "mock_disclaimer": mock_disclaimer,
+        "order_note": order_note,
         "sample_order_numbers": sample_orders,
         "agent_action": (
-            "Explain that the order number was not found in the mocked "
-            "demonstration database, share sample demo order numbers "
-            "(MERC-1001, MERC-1002, MERC-1003), and never request personal "
-            "payment or billing information."
+            "Explain that the order number was not found in the merchandise "
+            "order records, share valid sample order numbers (MERC-1001, "
+            "MERC-1002, MERC-1003), and never request personal payment or "
+            "billing information."
         ),
     })
 
   order_record = dict(orders_db[normalized])
   return _with_envelope({
       "status": "success",
-      "is_mock": True,
-      "mock_disclaimer": mock_disclaimer,
+      "order_note": order_note,
       "order_number": normalized,
       "order": order_record,
   })

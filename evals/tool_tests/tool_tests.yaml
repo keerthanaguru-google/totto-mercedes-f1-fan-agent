@@ -112,8 +112,8 @@ tests:
         - path: "$.agent_action"
           operator: "is_not_null"
 
-  - name: lookup_mock_merch_order_valid_merc_1001
-    tool: lookup_mock_merch_order
+  - name: lookup_merch_order_valid_merc_1001
+    tool: lookup_merch_order
     args:
       order_number: "MERC-1001"
     expectations:
@@ -121,15 +121,15 @@ tests:
         - path: "$.status"
           operator: "equals"
           value: "success"
-        - path: "$.is_mock"
+        - path: "$.order_number"
           operator: "equals"
-          value: true
+          value: "MERC-1001"
         - path: "$.order.status"
           operator: "equals"
           value: "Delivered"
 
-  - name: lookup_mock_merch_order_numeric_alias_1002
-    tool: lookup_mock_merch_order
+  - name: lookup_merch_order_numeric_alias_1002
+    tool: lookup_merch_order
     args:
       order_number: "1002"
     expectations:
@@ -140,12 +140,12 @@ tests:
         - path: "$.order_number"
           operator: "equals"
           value: "MERC-1002"
-        - path: "$.is_mock"
+        - path: "$.order.status"
           operator: "equals"
-          value: true
+          value: "In Transit"
 
-  - name: lookup_mock_merch_order_not_found_error
-    tool: lookup_mock_merch_order
+  - name: lookup_merch_order_not_found_error
+    tool: lookup_merch_order
     args:
       order_number: "MERC-9999"
     expectations:
@@ -153,14 +153,13 @@ tests:
         - path: "$.status"
           operator: "equals"
           value: "error"
-        - path: "$.is_mock"
-          operator: "equals"
-          value: true
+        - path: "$.order_note"
+          operator: "is_not_null"
         - path: "$.agent_action"
           operator: "is_not_null"
 
-  - name: submit_mock_merch_request_damaged_item_success
-    tool: submit_mock_merch_request
+  - name: submit_merch_request_damaged_item_success
+    tool: submit_merch_request
     args:
       order_number: "MERC-1001"
       request_type: "damaged_item"
@@ -171,15 +170,15 @@ tests:
         - path: "$.status"
           operator: "equals"
           value: "success"
-        - path: "$.is_mock"
+        - path: "$.order_number"
           operator: "equals"
-          value: true
+          value: "MERC-1001"
         - path: "$.reference_id"
           operator: "equals"
-          value: "MOCK-REQ-1001-DAMAGED_ITEM"
+          value: "MERC-REQ-1001-DAMAGED_ITEM"
 
-  - name: submit_mock_merch_request_invalid_type_error
-    tool: submit_mock_merch_request
+  - name: submit_merch_request_invalid_type_error
+    tool: submit_merch_request
     args:
       order_number: "MERC-1001"
       request_type: "invalid_type"
@@ -190,9 +189,8 @@ tests:
         - path: "$.status"
           operator: "equals"
           value: "error"
-        - path: "$.is_mock"
-          operator: "equals"
-          value: true
+        - path: "$.request_note"
+          operator: "is_not_null"
         - path: "$.agent_action"
           operator: "is_not_null"
 
@@ -206,9 +204,6 @@ tests:
         - path: "$.status"
           operator: "equals"
           value: "success"
-        - path: "$.is_mock"
-          operator: "equals"
-          value: true
         - path: "$.in_stock"
           operator: "equals"
           value: true

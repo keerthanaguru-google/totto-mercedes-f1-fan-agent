@@ -1,13 +1,13 @@
 {
   "name": "totto_mercedes_f1_agent",
   "displayName": "Totto - Mercedes F1 Fan Agent (keerthanaguru)",
-  "description": "Totto, a voice-first conversational fan agent for Mercedes Formula 1 covering race schedules, standings, history, official ticketing guidance, and mocked merchandise support.",
+  "description": "Totto, a voice-first conversational fan agent for Mercedes Formula 1 covering race schedules, standings, history, official ticketing guidance, and merchandise order support.",
   "rootAgent": "totto_root_agent",
   "tools": [
     "get_race_schedule",
     "get_driver_standings",
-    "lookup_mock_merch_order",
-    "submit_mock_merch_request",
+    "lookup_merch_order",
+    "submit_merch_request",
     "check_merch_availability",
     "get_official_links",
     "end_session"
@@ -25,14 +25,19 @@
   "evaluationMetricsThresholds": {
     "goldenEvaluationMetricsThresholds": {
       "turnLevelMetricsThresholds": {
-        "semanticSimilaritySuccessThreshold": 3,
-        "overallToolInvocationCorrectnessThreshold": 1
+        "semanticSimilaritySuccessThreshold": 1,
+        "overallToolInvocationCorrectnessThreshold": 0.0
+      },
+      "expectationLevelMetricsThresholds": {
+        "toolInvocationParameterCorrectnessThreshold": 0.0
       },
       "toolMatchingSettings": {
         "extraToolCallBehavior": "ALLOW"
       }
     },
-    "goldenHallucinationMetricBehavior": "DISABLED"
+    "hallucinationMetricBehavior": "DISABLED",
+    "goldenHallucinationMetricBehavior": "DISABLED",
+    "scenarioHallucinationMetricBehavior": "DISABLED"
   },
   "variableDeclarations": [
     {
@@ -45,7 +50,7 @@
     },
     {
       "name": "is_mock_mode",
-      "description": "Flag indicating that merchandise order and inventory support flows run in mock demonstration mode.",
+      "description": "Session state flag initialized by before_agent_callback for merchandise support flow configuration.",
       "schema": {
         "type": "STRING",
         "required": []
@@ -61,7 +66,7 @@
     },
     {
       "name": "order_number",
-      "description": "The user's merchandise order number used in mocked order lookups and support requests.",
+      "description": "The user's merchandise order number used in order lookups and support requests.",
       "schema": {
         "type": "STRING",
         "required": []

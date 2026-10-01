@@ -1,0 +1,9 @@
+{
+  "displayName": "lookup_merch_order",
+  "pythonFunction": {
+    "name": "lookup_merch_order",
+    "pythonCode": "tools/lookup_merch_order/python_function/python_code.py",
+    "description": "Looks up a Mercedes F1 merchandise order using only an order number."
+  },
+  "executionType": "SYNCHRONOUS"
+}

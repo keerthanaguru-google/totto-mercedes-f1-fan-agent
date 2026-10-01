@@ -54,17 +54,17 @@
 +-------------------------+  +-----------------------------+  +-------------------------+
 |     race_info_agent     |  |     merch_support_agent     |  |     ticketing_agent     |
 |                         |  |                             |  |                         |
-| - Checks user_location  |  | - Discloses mock/demo mode  |  | - Prohibits direct      |
-|   before giving local   |  | - Requires only order_number|  |   ticket sales, pricing,|
-|   session times         |  |   for order lookups/claims  |  |   or seat inventory     |
-| - Highlights Mercedes   |  | - Checks item availability  |  | - Directs to official   |
-|   drivers (#63, #12)    |  |   & directs purchases to    |  |   F1 ticketing portal   |
-| - Discloses latest-     |  |   official Mercedes store   |  | - Shares weekend dates  |
+| - Checks user_location  |  | - Requires only order_number|  | - Prohibits direct      |
+|   before giving local   |  |   for order lookups/claims  |  |   ticket sales, pricing,|
+|   session times         |  | - Checks item availability  |  |   or seat inventory     |
+| - Highlights Mercedes   |  |   & directs purchases to    |  | - Directs to official   |
+|   drivers (#63, #12)    |  |   official Mercedes store   |  |   F1 ticketing portal   |
+| - Discloses latest-     |  |                             |  | - Shares weekend dates  |
 |   available data status |  |                             |  |   for attendance context|
 |                         |  |                             |  |                         |
 | Tools:                  |  | Tools:                      |  | Tools:                  |
-| - get_race_schedule     |  | - lookup_mock_merch_order   |  | - get_official_links    |
-| - get_driver_standings  |  | - submit_mock_merch_request |  | - get_race_schedule     |
+| - get_race_schedule     |  | - lookup_merch_order        |  | - get_official_links    |
+| - get_driver_standings  |  | - submit_merch_request      |  | - get_race_schedule     |
 | - end_session           |  | - check_merch_availability  |  | - end_session           |
 |                         |  | - get_official_links        |  |                         |
 |                         |  | - end_session               |  |                         |
@@ -77,7 +77,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | `totto_root_agent` | Root Concierge, Brand Ambassador, History & Rules Educator | Initial greeting, identity questions, F1/Mercedes history, rules/formats, general social/team links, off-topic/guardrail handling, session wrap-up | `get_official_links`, `end_session` | `race_info_agent`, `merch_support_agent`, `ticketing_agent` |
 | `race_info_agent` | Race Weekend, Schedule, Weather & Standings Specialist | Upcoming/recent races, practice/qualifying/sprint/race start times, circuit weather, driver/constructor standings, Mercedes performance | `get_race_schedule`, `get_driver_standings`, `end_session` | None |
-| `merch_support_agent` | Mock Merchandise Support & Availability Specialist | Merch order tracking, returns, exchanges, damaged items, product stock checks, where to buy official Mercedes gear | `lookup_mock_merch_order`, `submit_mock_merch_request`, `check_merch_availability`, `get_official_links`, `end_session` | None |
+| `merch_support_agent` | Merchandise Support & Availability Specialist | Merch order tracking, returns, exchanges, damaged items, product stock checks, where to buy official Mercedes gear | `lookup_merch_order`, `submit_merch_request`, `check_merch_availability`, `get_official_links`, `end_session` | None |
 | `ticketing_agent` | Official Formula 1 Ticketing & Attendance Guide | Buying F1 tickets, grandstand/hospitality inquiries, race attendance guidance | `get_official_links`, `get_race_schedule`, `end_session` | None |
 
 ---
@@ -98,20 +98,20 @@ All custom tools are synchronous Python functions (`executionType: "SYNCHRONOUS"
 - **Signature**: `def get_driver_standings(category: str = "drivers", team_filter: str = "Mercedes") -> dict[str, Any]:`
 - **Purpose**: Returns latest-available Formula 1 World Drivers' Championship (`category="drivers"`) or Constructors' Championship (`category="constructors"`) standings via live OpenF1 API (`https://api.openf1.org/v1/drivers`, `/v1/position`) with deterministic fallback fixtures, always highlighting Mercedes-AMG PETRONAS F1 (George Russell #63 and Kimi Antonelli #12) alongside top grid context, plus `"data_freshness": "latest_available"` so the agent discloses that data is latest-available rather than live telemetry.
 
-### 3.3 `lookup_mock_merch_order`
-- **Path**: `tools/lookup_mock_merch_order/python_function/python_code.py`
-- **Signature**: `def lookup_mock_merch_order(order_number: str) -> dict[str, Any]:`
-- **Purpose**: Looks up a mocked Mercedes F1 merchandise order using only `order_number` (e.g., `MERC-1001`, `MERC-1002`, `MERC-1003`). Always sets `"is_mock": True` and includes a `"mock_disclaimer"` reminding the agent to state clearly that order data is from a mock demonstration environment.
+### 3.3 `lookup_merch_order`
+- **Path**: `tools/lookup_merch_order/python_function/python_code.py`
+- **Signature**: `def lookup_merch_order(order_number: str) -> dict[str, Any]:`
+- **Purpose**: Looks up a Mercedes F1 merchandise order using only `order_number` (e.g., `MERC-1001`, `MERC-1002`, `MERC-1003`). Returns order status, items, carrier, tracking number (`MERC-DHL-63001001`, `MERC-UPS-12001002`, `MERC-FDX-44001003`), estimated delivery, and `order_note`.
 
-### 3.4 `submit_mock_merch_request`
-- **Path**: `tools/submit_mock_merch_request/python_function/python_code.py`
-- **Signature**: `def submit_mock_merch_request(order_number: str, request_type: str, item_name: str = "", reason: str = "") -> dict[str, Any]:`
-- **Purpose**: Submits a mocked post-purchase support request (`request_type` in `{"return", "exchange", "damaged_item"}`) requiring only `order_number`. Returns a mocked reference ID, simulated resolution steps, `"is_mock": True`, and `"mock_disclaimer"`.
+### 3.4 `submit_merch_request`
+- **Path**: `tools/submit_merch_request/python_function/python_code.py`
+- **Signature**: `def submit_merch_request(order_number: str, request_type: str, item_name: str = "", reason: str = "") -> dict[str, Any]:`
+- **Purpose**: Submits a post-purchase support request (`request_type` in `{"return", "exchange", "damaged_item"}`) requiring only `order_number`. Returns a reference ID (`MERC-REQ-<NUM>-<TYPE>`), resolution steps, and `request_note`.
 
 ### 3.5 `check_merch_availability`
 - **Path**: `tools/check_merch_availability/python_function/python_code.py`
 - **Signature**: `def check_merch_availability(item_query: str, size: str = "") -> dict[str, Any]:`
-- **Purpose**: Searches the mocked Mercedes-AMG PETRONAS F1 merchandise catalog (caps, team polo shirts, hoodies, scale model cars, driver jerseys for George Russell #63 and Kimi Antonelli #12) by product name and optional size. Returns stock status, available sizes, `"is_mock": True`, and official store link context (`https://shop.mercedesamgf1.com/`).
+- **Purpose**: Searches the Mercedes-AMG PETRONAS F1 merchandise catalog (caps, team polo shirts, hoodies, scale model cars, driver jerseys for George Russell #63 and Kimi Antonelli #12) by product name and optional size. Returns stock status, available sizes, `store_note`, and official store link context (`https://shop.mercedesamgf1.com/`).
 
 ### 3.6 `get_official_links`
 - **Path**: `tools/get_official_links/python_function/python_code.py`

@@ -269,16 +269,16 @@ def test_adv_get_driver_standings_openf1_edge_responses(mock_resp_factory: Any) 
         ("replacement", "damaged_item"),
     ],
 )
-def test_adv_submit_mock_merch_request_all_type_aliases(
+def test_adv_submit_merch_request_all_type_aliases(
     req_alias: str, expected_type: str
 ) -> None:
-  """Exercises all 15 request_type aliases in submit_mock_merch_request (lines 40-54, 79)."""
-  submit_fn = load_tool_function("submit_mock_merch_request")
+  """Exercises all 15 request_type aliases in submit_merch_request (lines 40-54, 79)."""
+  submit_fn = load_tool_function("submit_merch_request")
   res = submit_fn(order_number="1003", request_type=req_alias)
   assert res["status"] == "success"
   assert res["order_number"] == "MERC-1003"
   assert res["request_type"] == expected_type
-  assert res["reference_id"] == f"MOCK-REQ-1003-{expected_type.upper()}"
+  assert res["reference_id"] == f"MERC-REQ-1003-{expected_type.upper()}"
   assert res["item_name"] == "Mercedes-AMG PETRONAS Team Softshell Jacket"
   assert res["reason"] == f"Customer requested {expected_type}"
 
@@ -390,8 +390,8 @@ def test_adv_envelope_isolation_does_not_contain_circular_self_reference() -> No
   for tool_name, kwargs in [
       ("get_race_schedule", {"race_name": "miami", "user_location": "London"}),
       ("get_driver_standings", {"category": "both", "team_filter": "Mercedes"}),
-      ("lookup_mock_merch_order", {"order_number": "MERC-1001"}),
-      ("submit_mock_merch_request", {"order_number": "MERC-1001", "request_type": "return"}),
+      ("lookup_merch_order", {"order_number": "MERC-1001"}),
+      ("submit_merch_request", {"order_number": "MERC-1001", "request_type": "return"}),
       ("check_merch_availability", {"item_query": "polo", "size": "M"}),
       ("get_official_links", {"category": "all"}),
   ]:

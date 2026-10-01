@@ -458,105 +458,106 @@ class TestF10OfficialLinksTool:
 
 
 # ==============================================================================
-# F11: Mocked Merch Order Lookup (`lookup_mock_merch_order`) (5 test cases)
+# F11: Merch Order Lookup (`lookup_merch_order`) (5 test cases)
 # ==============================================================================
 class TestF11MockMerchOrderLookup:
-  """Tests F11: lookup_mock_merch_order happy paths and mock disclaimers."""
+  """Tests F11: lookup_merch_order happy paths and order-number-only notes."""
 
   def test_f11_lookup_order_merc_1001_delivered_russell_cap(self) -> None:
-    lookup_mock_merch_order = load_tool_function("lookup_mock_merch_order")
-    res = lookup_mock_merch_order(order_number="MERC-1001")
+    lookup_merch_order = load_tool_function("lookup_merch_order")
+    res = lookup_merch_order(order_number="MERC-1001")
     assert res["status"] == "success"
-    assert res["is_mock"] is True
-    assert "mock" in res.get("mock_disclaimer", "").lower()
+    assert "order number" in res.get("order_note", "").lower()
+    assert "mock" not in str(res).lower()
     assert res["order"]["status"] == "Delivered"
     assert "Russell" in str(res["order"]["items"])
 
   def test_f11_lookup_order_merc_1002_in_transit_polo_and_antonelli_tee(self) -> None:
-    lookup_mock_merch_order = load_tool_function("lookup_mock_merch_order")
-    res = lookup_mock_merch_order(order_number="MERC-1002")
+    lookup_merch_order = load_tool_function("lookup_merch_order")
+    res = lookup_merch_order(order_number="MERC-1002")
     assert res["status"] == "success"
-    assert res["is_mock"] is True
+    assert "mock" not in str(res).lower()
     assert res["order"]["status"] == "In Transit"
     assert "Polo" in str(res["order"]["items"])
 
   def test_f11_lookup_order_merc_1003_return_approved_softshell_jacket(self) -> None:
-    lookup_mock_merch_order = load_tool_function("lookup_mock_merch_order")
-    res = lookup_mock_merch_order(order_number="MERC-1003")
+    lookup_merch_order = load_tool_function("lookup_merch_order")
+    res = lookup_merch_order(order_number="MERC-1003")
     assert res["status"] == "success"
-    assert res["is_mock"] is True
+    assert "mock" not in str(res).lower()
     assert "Return Approved" in res["order"]["status"]
     assert "Softshell" in str(res["order"]["items"])
 
   def test_f11_lookup_order_requires_only_order_number_parameter(self) -> None:
-    lookup_mock_merch_order = load_tool_function("lookup_mock_merch_order")
-    sig = inspect.signature(lookup_mock_merch_order)
+    lookup_merch_order = load_tool_function("lookup_merch_order")
+    sig = inspect.signature(lookup_merch_order)
     params = list(sig.parameters.keys())
     assert params == ["order_number"], f"Expected only ['order_number'], got {params}"
 
-  def test_f11_merch_agent_instruction_requires_only_order_number_and_mock_disclosure(self) -> None:
+  def test_f11_merch_agent_instruction_requires_only_order_number_and_no_mock_wording(self) -> None:
     text = (AGENTS_DIR / "merch_support_agent" / "instruction.txt").read_text(encoding="utf-8").lower()
     assert "only an order number" in text or "only the order number" in text
-    assert "mock" in text and "demonstration" in text
+    assert "mock" not in text
 
 
 # ==============================================================================
-# F12: Mocked Merch Returns, Exchanges & Damaged-Item Claims (`submit_mock_merch_request`) (5 test cases)
+# F12: Merch Returns, Exchanges & Damaged-Item Claims (`submit_merch_request`) (5 test cases)
 # ==============================================================================
 class TestF12MockMerchSubmitRequest:
-  """Tests F12: submit_mock_merch_request for return, exchange, and damaged_item."""
+  """Tests F12: submit_merch_request for return, exchange, and damaged_item."""
 
   def test_f12_submit_return_request_for_merc_1001(self) -> None:
-    submit_mock_merch_request = load_tool_function("submit_mock_merch_request")
-    res = submit_mock_merch_request(order_number="MERC-1001", request_type="return")
+    submit_merch_request = load_tool_function("submit_merch_request")
+    res = submit_merch_request(order_number="MERC-1001", request_type="return")
     assert res["status"] == "success"
-    assert res["is_mock"] is True
-    assert "MOCK-REQ" in res["reference_id"]
+    assert "mock" not in str(res).lower()
+    assert "MERC-REQ" in res["reference_id"]
     assert res["request_type"] == "return"
     assert len(res.get("resolution_steps", "")) > 10
 
   def test_f12_submit_exchange_request_for_merc_1002(self) -> None:
-    submit_mock_merch_request = load_tool_function("submit_mock_merch_request")
-    res = submit_mock_merch_request(
+    submit_merch_request = load_tool_function("submit_merch_request")
+    res = submit_merch_request(
         order_number="MERC-1002",
         request_type="exchange",
         item_name="W17 Team Polo Shirt",
         reason="Need size XL instead of L",
     )
     assert res["status"] == "success"
-    assert res["is_mock"] is True
-    assert "MOCK-REQ" in res["reference_id"]
+    assert "mock" not in str(res).lower()
+    assert "MERC-REQ" in res["reference_id"]
     assert res["request_type"] == "exchange"
 
   def test_f12_submit_damaged_item_request_for_merc_1001(self) -> None:
-    submit_mock_merch_request = load_tool_function("submit_mock_merch_request")
-    res = submit_mock_merch_request(
+    submit_merch_request = load_tool_function("submit_merch_request")
+    res = submit_merch_request(
         order_number="MERC-1001",
         request_type="damaged_item",
         item_name="Driver Cap",
         reason="Stitched logo frayed on arrival",
     )
     assert res["status"] == "success"
-    assert res["is_mock"] is True
-    assert "MOCK-REQ" in res["reference_id"]
+    assert "mock" not in str(res).lower()
+    assert "MERC-REQ" in res["reference_id"]
     assert res["request_type"] == "damaged_item"
 
   def test_f12_submit_request_works_with_only_order_number_and_request_type(self) -> None:
-    submit_mock_merch_request = load_tool_function("submit_mock_merch_request")
-    res = submit_mock_merch_request("MERC-1003", "return")
+    submit_merch_request = load_tool_function("submit_merch_request")
+    res = submit_merch_request("MERC-1003", "return")
     assert res["status"] == "success"
     assert res["order_number"] == "MERC-1003"
-    assert res["is_mock"] is True
+    assert "mock" not in str(res).lower()
 
-  def test_f12_submit_request_includes_explicit_no_real_refund_disclaimer(self) -> None:
-    submit_mock_merch_request = load_tool_function("submit_mock_merch_request")
-    res = submit_mock_merch_request("MERC-1001", "damaged_item")
-    disclaimer = res.get("mock_disclaimer", "").lower()
-    assert "mock" in disclaimer
+  def test_f12_submit_request_includes_explicit_no_payment_note(self) -> None:
+    submit_merch_request = load_tool_function("submit_merch_request")
+    res = submit_merch_request("MERC-1001", "damaged_item")
+    note = res.get("request_note", "").lower()
+    assert "order number" in note and "payment" in note
+    assert "mock" not in note
 
 
 # ==============================================================================
-# F13: Mocked Merch Product & Size Availability (`check_merch_availability`) (5 test cases)
+# F13: Merch Product & Size Availability (`check_merch_availability`) (5 test cases)
 # ==============================================================================
 class TestF13MockMerchAvailability:
   """Tests F13: check_merch_availability across caps, polos, hoodies, jackets, models."""
@@ -566,7 +567,7 @@ class TestF13MockMerchAvailability:
     for query in ("George Russell cap", "Kimi Antonelli cap", "cap"):
       res = check_merch_availability(item_query=query)
       assert res["status"] == "success"
-      assert res["is_mock"] is True
+      assert "mock" not in str(res).lower()
       assert res["in_stock"] is True
       assert "One Size" in res["available_sizes"]
       assert res["official_store_url"] == "https://shop.mercedesamgf1.com/"

@@ -1,0 +1,9 @@
+{
+  "displayName": "submit_merch_request",
+  "pythonFunction": {
+    "name": "submit_merch_request",
+    "pythonCode": "tools/submit_merch_request/python_function/python_code.py",
+    "description": "Submits a return, exchange, or damaged-item merchandise request."
+  },
+  "executionType": "SYNCHRONOUS"
+}

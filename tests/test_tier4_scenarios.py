@@ -102,11 +102,11 @@ def test_scenario_03_trackside_attendance_and_non_transactional_ticketing_journe
   assert "July" in sched_res["race"]["dates"]
 
 
-def test_scenario_04_mock_merch_full_post_purchase_support_journey() -> None:
+def test_scenario_04_merch_full_post_purchase_support_journey() -> None:
   """E2E Journey 4: Fan tracks order MERC-1001, files damaged-item claim, checks stock & store link."""
   cb = load_before_agent_callback()
-  lookup_order = load_tool_function("lookup_mock_merch_order")
-  submit_request = load_tool_function("submit_mock_merch_request")
+  lookup_order = load_tool_function("lookup_merch_order")
+  submit_request = load_tool_function("submit_merch_request")
   check_avail = load_tool_function("check_merch_availability")
   get_links = load_tool_function("get_official_links")
 
@@ -119,7 +119,7 @@ def test_scenario_04_mock_merch_full_post_purchase_support_journey() -> None:
   cb(ctx)
   lookup_res = lookup_order(order_number=ctx.state["order_number"])
   assert lookup_res["status"] == "success"
-  assert lookup_res["is_mock"] is True
+  assert "order_note" in lookup_res
   assert lookup_res["order"]["status"] == "Delivered"
 
   # Step 2: Submit damaged item claim for the cap
@@ -130,8 +130,8 @@ def test_scenario_04_mock_merch_full_post_purchase_support_journey() -> None:
       reason="Visor stitching arrived damaged",
   )
   assert claim_res["status"] == "success"
-  assert claim_res["is_mock"] is True
-  assert "MOCK-REQ" in claim_res["reference_id"] and "1001" in claim_res["reference_id"]
+  assert "request_note" in claim_res
+  assert "MERC-REQ" in claim_res["reference_id"] and "1001" in claim_res["reference_id"]
 
   # Step 3: Check stock for replacement cap and team polo
   cap_avail = check_avail(item_query="George Russell cap", size="One Size")
@@ -146,8 +146,8 @@ def test_scenario_04_mock_merch_full_post_purchase_support_journey() -> None:
 
 def test_scenario_05_multi_domain_error_recovery_journey() -> None:
   """E2E Journey 5: Fan hits MERC-9999, XXL out-of-stock, signed race suit, and Narnia GP errors."""
-  lookup_order = load_tool_function("lookup_mock_merch_order")
-  submit_request = load_tool_function("submit_mock_merch_request")
+  lookup_order = load_tool_function("lookup_merch_order")
+  submit_request = load_tool_function("submit_merch_request")
   check_avail = load_tool_function("check_merch_availability")
   get_schedule = load_tool_function("get_race_schedule")
   get_standings = load_tool_function("get_driver_standings")
@@ -181,7 +181,7 @@ def test_scenario_06_goldens_yaml_covers_all_required_cujs_and_failure_adversari
   goldens = load_yaml_file(EVALS_DIR / "goldens" / "goldens.yaml")
   assert "common_session_parameters" in goldens
   assert goldens["common_session_parameters"].get("favorite_team") == "Mercedes"
-  assert goldens["common_session_parameters"].get("is_mock_mode") == "true"
+  assert goldens["common_session_parameters"].get("initialized") == "true"
 
   convs = goldens.get("conversations", [])
   assert len(convs) >= 12

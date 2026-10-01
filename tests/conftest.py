@@ -24,8 +24,8 @@ EXPECTED_AGENTS = (
 EXPECTED_TOOLS = (
     "get_race_schedule",
     "get_driver_standings",
-    "lookup_mock_merch_order",
-    "submit_mock_merch_request",
+    "lookup_merch_order",
+    "submit_merch_request",
     "check_merch_availability",
     "get_official_links",
 )

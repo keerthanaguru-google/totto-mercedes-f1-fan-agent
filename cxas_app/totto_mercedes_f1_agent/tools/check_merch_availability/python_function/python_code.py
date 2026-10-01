@@ -1,4 +1,4 @@
-"""Tool for checking mocked Mercedes-AMG PETRONAS F1 merchandise availability."""
+"""Tool for checking Mercedes-AMG PETRONAS F1 merchandise availability."""
 
 from typing import Any
 
@@ -7,12 +7,11 @@ def check_merch_availability(
     item_query: str,
     size: str = "",
 ) -> dict[str, Any]:
-  """Checks mocked stock and size availability for Mercedes F1 merchandise.
+  """Checks stock and size availability for Mercedes F1 merchandise and provides the official store URL.
 
-  Searches the deterministic mock catalog of Mercedes-AMG PETRONAS Formula One
-  Team gear (driver caps, team polos, hoodies, jackets, and scale model cars),
-  verifies size availability when requested, discloses that inventory data is
-  mocked, and includes the official Mercedes F1 store URL.
+  Searches the catalog of Mercedes-AMG PETRONAS Formula One Team gear (driver
+  caps, team polos, hoodies, jackets, and scale model cars), verifies size
+  availability when requested, and includes the official Mercedes F1 store URL.
 
   Args:
     item_query: Product name or keyword to search (e.g., "George Russell cap",
@@ -21,14 +20,13 @@ def check_merch_availability(
       Defaults to "".
 
   Returns:
-    A dictionary containing mocked stock availability, available_sizes,
-    official_store_url, is_mock flag, and agent_action guidance on errors.
+    A dictionary containing stock availability, available_sizes,
+    official_store_url, store_note, and agent_action guidance on errors.
   """
   official_store_url = "https://shop.mercedesamgf1.com/"
-  mock_disclaimer = (
-      "MOCK DEMONSTRATION ONLY: Product stock and size availability are "
-      "drawn from a simulated demonstration catalog. For real-time inventory "
-      "and purchases, visit https://shop.mercedesamgf1.com/."
+  store_note = (
+      "For official store purchases and full catalog browsing, visit "
+      "https://shop.mercedesamgf1.com/."
   )
 
   catalog: list[dict[str, Any]] = [
@@ -38,7 +36,7 @@ def check_merch_availability(
           "in_stock": True,
           "available_sizes": ["One Size"],
           "out_of_stock_sizes": ["S", "M", "L", "XL", "XXL"],
-          "price_note": "Demo catalog item (visit official store for pricing)",
+          "price_note": "Visit official store for current pricing",
       },
       {
           "keywords": ["antonelli", "kimi", "12"],
@@ -46,7 +44,7 @@ def check_merch_availability(
           "in_stock": True,
           "available_sizes": ["One Size", "S", "M", "L", "XL"],
           "out_of_stock_sizes": ["XS", "XXL"],
-          "price_note": "Demo catalog item (visit official store for pricing)",
+          "price_note": "Visit official store for current pricing",
       },
       {
           "keywords": ["polo", "shirt", "teamwear", "jersey", "tee", "t-shirt"],
@@ -54,7 +52,7 @@ def check_merch_availability(
           "in_stock": True,
           "available_sizes": ["S", "M", "L", "XL"],
           "out_of_stock_sizes": ["XS", "XXL", "XXXL"],
-          "price_note": "Demo catalog item (visit official store for pricing)",
+          "price_note": "Visit official store for current pricing",
       },
       {
           "keywords": ["hoodie", "sweatshirt", "sweater", "fleece"],
@@ -62,7 +60,7 @@ def check_merch_availability(
           "in_stock": True,
           "available_sizes": ["M", "L", "XL"],
           "out_of_stock_sizes": ["XS", "S", "XXL"],
-          "price_note": "Demo catalog item (visit official store for pricing)",
+          "price_note": "Visit official store for current pricing",
       },
       {
           "keywords": ["jacket", "softshell", "rain", "coat"],
@@ -70,7 +68,7 @@ def check_merch_availability(
           "in_stock": True,
           "available_sizes": ["S", "M", "L"],
           "out_of_stock_sizes": ["XS", "XL", "XXL"],
-          "price_note": "Demo catalog item (visit official store for pricing)",
+          "price_note": "Visit official store for current pricing",
       },
       {
           "keywords": ["model", "diecast", "1:18", "w17", "car"],
@@ -78,7 +76,7 @@ def check_merch_availability(
           "in_stock": True,
           "available_sizes": ["1:18 Scale"],
           "out_of_stock_sizes": [],
-          "price_note": "Demo catalog item (visit official store for pricing)",
+          "price_note": "Visit official store for current pricing",
       },
       {
           "keywords": [
@@ -92,7 +90,7 @@ def check_merch_availability(
           "in_stock": False,
           "available_sizes": [],
           "out_of_stock_sizes": ["S", "M", "L", "XL", "One Size"],
-          "price_note": "Out of stock in demo catalog",
+          "price_note": "Currently out of stock in the merchandise catalog",
       },
   ]
 
@@ -100,16 +98,15 @@ def check_merch_availability(
   if not query_clean:
     return _with_envelope({
         "status": "error",
-        "error": "An item_query is required to check mocked merch availability.",
-        "is_mock": True,
-        "mock_disclaimer": mock_disclaimer,
+        "error": "An item_query is required to check merchandise availability.",
+        "store_note": store_note,
         "in_stock": False,
         "available_sizes": [],
         "official_store_url": official_store_url,
         "agent_action": (
             "Ask the user which Mercedes F1 merchandise item they want to "
             "check (such as a George Russell cap, team polo, hoodie, jacket, "
-            "or scale model car) and remind them this is a mocked catalog."
+            "or scale model car)."
         ),
     })
 
@@ -124,17 +121,16 @@ def check_merch_availability(
     return _with_envelope({
         "status": "error",
         "error": (
-            f"Item '{item_query}' was not found in the mocked Mercedes F1 "
+            f"Item '{item_query}' was not found in the Mercedes F1 "
             "merchandise catalog."
         ),
-        "is_mock": True,
-        "mock_disclaimer": mock_disclaimer,
+        "store_note": store_note,
         "in_stock": False,
         "available_sizes": [],
         "official_store_url": official_store_url,
         "agent_action": (
-            "Explain that the requested item is not in the mocked demo "
-            "catalog, suggest available demo items (George Russell #63 cap, "
+            "Explain that the requested item was not found in the merchandise "
+            "catalog, suggest available items (George Russell #63 cap, "
             "Kimi Antonelli #12 collection, team polo, hoodie, softshell "
             "jacket, or 1:18 model car), and direct the user to "
             "https://shop.mercedesamgf1.com/ for the full official store."
@@ -146,20 +142,18 @@ def check_merch_availability(
         "status": "error",
         "error": (
             f"'{matched_entry['item']}' is currently out of stock in the "
-            "mocked demonstration catalog."
+            "merchandise catalog."
         ),
-        "is_mock": True,
-        "mock_disclaimer": mock_disclaimer,
+        "store_note": store_note,
         "item": matched_entry["item"],
         "in_stock": False,
         "requested_size": (size or "").strip(),
         "available_sizes": [],
         "official_store_url": official_store_url,
         "agent_action": (
-            "Inform the user that this item is out of stock in the mocked "
-            "demonstration catalog, offer alternative in-stock demo gear such "
-            "as driver caps or team polos, and direct them to "
-            "https://shop.mercedesamgf1.com/."
+            "Inform the user that this item is currently out of stock, offer "
+            "alternative in-stock gear such as driver caps or team polos, and "
+            "direct them to https://shop.mercedesamgf1.com/."
         ),
     })
 
@@ -179,20 +173,19 @@ def check_merch_availability(
           "status": "error",
           "error": (
               f"Size '{req_size}' for '{matched_entry['item']}' is out of "
-              "stock in the mocked catalog."
+              "stock in the merchandise catalog."
           ),
-          "is_mock": True,
-          "mock_disclaimer": mock_disclaimer,
+          "store_note": store_note,
           "item": matched_entry["item"],
           "in_stock": False,
           "requested_size": req_size,
           "available_sizes": available_sizes,
           "official_store_url": official_store_url,
           "agent_action": (
-              f"Let the user know that size '{req_size}' is out of stock in "
-              f"the mocked catalog, share the available mocked sizes "
-              f"({', '.join(available_sizes)}), and point them to "
-              "https://shop.mercedesamgf1.com/ for official store purchases."
+              f"Let the user know that size '{req_size}' is out of stock, "
+              f"share the available sizes ({', '.join(available_sizes)}), and "
+              "point them to https://shop.mercedesamgf1.com/ for official "
+              "store purchases."
           ),
       })
   else:
@@ -200,8 +193,7 @@ def check_merch_availability(
 
   return _with_envelope({
       "status": "success",
-      "is_mock": True,
-      "mock_disclaimer": mock_disclaimer,
+      "store_note": store_note,
       "item": matched_entry["item"],
       "in_stock": True,
       "requested_size": req_size or matched_size,

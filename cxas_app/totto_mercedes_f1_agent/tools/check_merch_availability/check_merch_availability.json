@@ -4,7 +4,7 @@
   "pythonFunction": {
     "name": "check_merch_availability",
     "pythonCode": "tools/check_merch_availability/python_function/python_code.py",
-    "description": "Checks mocked Mercedes-AMG PETRONAS F1 merchandise product and size availability in the demo catalog and provides the official Mercedes F1 store URL."
+    "description": "Checks stock and size availability for Mercedes F1 merchandise and provides the official store URL."
   },
   "executionType": "SYNCHRONOUS"
 }
