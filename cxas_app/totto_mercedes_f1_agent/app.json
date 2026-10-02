@@ -49,8 +49,8 @@
       }
     },
     {
-      "name": "is_mock_mode",
-      "description": "Session state flag initialized by before_agent_callback for merchandise support flow configuration.",
+      "name": "merch_support_enabled",
+      "description": "Session state flag initialized by before_agent_callback indicating that merchandise order support flows are enabled.",
       "schema": {
         "type": "STRING",
         "required": []

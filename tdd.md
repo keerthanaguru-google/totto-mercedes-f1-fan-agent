@@ -30,7 +30,7 @@
 |                          [before_agent_callback]                                  |
 |  Initializes session state:                                                       |
 |  - favorite_team = "Mercedes"                                                     |
-|  - is_mock_mode  = "true"                                                         |
+|  - merch_support_enabled = "true"                                                 |
 |  - user_location = "" (if unset)                                                  |
 |  - order_number  = "" (if unset)                                                  |
 |  - initialized   = "true"                                                         |
@@ -130,16 +130,16 @@ All custom tools are synchronous Python functions (`executionType: "SYNCHRONOUS"
 | Variable Name | Schema Type | Default Initialized Value | Description |
 | :--- | :--- | :--- | :--- |
 | `favorite_team` | `STRING` | `"Mercedes"` | The user's prioritized Formula 1 team context, defaulting to Mercedes. |
-| `is_mock_mode` | `STRING` | `"true"` | Flag indicating that merchandise order and inventory flows operate in mock demo mode. |
+| `merch_support_enabled` | `STRING` | `"true"` | Session state flag initialized by `before_agent_callback` indicating that merchandise order support flows are enabled. |
 | `user_location` | `STRING` | `""` | The user's city, region, or timezone for localizing race session start times. |
-| `order_number` | `STRING` | `""` | The user's merchandise order number for mocked order lookups and support requests. |
+| `order_number` | `STRING` | `""` | The user's merchandise order number for order lookups and support requests. |
 | `initialized` | `STRING` | `"true"` | Session initialization marker set by `before_agent_callback` on first turn. |
 
 ### 4.2 `before_agent_callback` (`totto_root_agent`)
 - **Path**: `agents/totto_root_agent/before_agent_callbacks/before_agent_callbacks_01/python_code.py`
 - **Behavior**:
   1. Checks `callback_context.state.get("initialized") == "true"`; if already initialized, ensures defaults remain intact and returns `None`.
-  2. Sets `state["initialized"] = "true"`, `state["favorite_team"] = "Mercedes"` (if unset/empty), `state["is_mock_mode"] = "true"` (if unset/empty), `state["user_location"] = ""` (if key missing), and `state["order_number"] = ""` (if key missing).
+  2. Sets `state["initialized"] = "true"`, `state["favorite_team"] = "Mercedes"` (if unset/empty), `state["merch_support_enabled"] = "true"` (if unset/empty), `state["user_location"] = ""` (if key missing), and `state["order_number"] = ""` (if key missing).
   3. Returns `None` so normal agent execution proceeds.
 
 ---

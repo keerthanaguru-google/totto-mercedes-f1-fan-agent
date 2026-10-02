@@ -30,7 +30,7 @@ conversations:
       user_location: ""
     expectations:
       - The agent invokes get_race_schedule for the upcoming Grand Prix.
-      - Because user_location is empty, the agent shares the venue-local or UTC schedule and weather briefly and asks the user for their city or timezone to localize session times.
+      - Because user_location is empty, the agent shares the race weekend dates and circuit weather without quoting session clock times and asks the user for their city or timezone to localize session times.
       - The agent mentions that schedule and weather figures come from the latest available structured data.
     turns:
       - user: "When does the next Formula 1 race start and what's the weather looking like?"
@@ -66,8 +66,8 @@ conversations:
                   Sprint: "Saturday 12:00 EDT"
                   Qualifying: "Saturday 16:00 EDT"
                   Race: "Sunday 16:00 EDT"
-              agent_action: "Share the race weekend dates, weather, and venue-local session times, and ask the user for their city or timezone so you can provide exact start times in their local timezone."
-        agent: "Based on our latest available structured data, the next race is the Miami Grand Prix from May 1 to May 3, 2026, with Sunday's race starting at 16:00 EDT (20:00 UTC) in warm 29°C partly cloudy conditions. Which city or timezone are you tuning in from so I can convert all the session start times to your local time?"
+              agent_action: "Ask the user for their city or timezone FIRST before quoting any session clock times (do NOT state any local or UTC clock times such as '4 PM local time' while user_location is empty). Share the race weekend dates, circuit weather (condition, temperature in C/F, and rain chance), and explicitly state that schedule and weather details come from the latest available structured data."
+        agent: "Based on our latest available structured data, the next race is the Miami Grand Prix from May 1 to May 3, 2026, with warm 29°C (84°F) partly cloudy circuit weather and a 20% chance of rain. Which city or timezone are you tuning in from so I can convert the session start times to your local time?"
 
   - conversation: race_schedule_localized_for_london_fan
     tags:
@@ -112,6 +112,7 @@ conversations:
                   temperature_f: 70
                   rain_chance_percent: 35
                 mercedes_context: "Silverstone is the home Grand Prix for the Brackley and Brixworth squads and George Russell (#63), where high-speed aero stability through Maggotts and Becketts suits the W17."
+              agent_action: "Share the localized session start times in the user's timezone alongside the circuit weather (condition, temperature in C/F, and rain chance), and explicitly state that the race schedule and weather details come from the latest available structured data."
         agent: "For the British Grand Prix at Silverstone from July 3 to July 5, 2026, Qualifying starts on Saturday at 15:00 BST and the Grand Prix lights go out on Sunday at 15:00 BST in your London timezone. Based on our latest available structured data, expect breezy 21°C conditions as George Russell and Kimi Antonelli tackle the team's home race—would you like the Friday practice times too?"
 
   - conversation: driver_and_constructor_standings_mercedes_priority

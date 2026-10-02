@@ -750,7 +750,7 @@ class TestF15CallbackAndSchemaStrictBoundaries:
     cb = load_before_agent_callback()
     ctx = DummyCallbackContext({
         "favorite_team": "Mercedes-AMG",
-        "is_mock_mode": "true",
+        "merch_support_enabled": "true",
         "user_location": "Tokyo",
         "order_number": "MERC-1002",
         "initialized": "true",
@@ -766,14 +766,14 @@ class TestF15CallbackAndSchemaStrictBoundaries:
     cb = load_before_agent_callback()
     ctx = DummyCallbackContext({
         "favorite_team": "",
-        "is_mock_mode": None,
+        "merch_support_enabled": None,
         "user_location": None,
         "order_number": None,
     })
     ret = cb(ctx)
     assert ret is None
     assert ctx.state["favorite_team"] == "Mercedes"
-    assert ctx.state["is_mock_mode"] == "true"
+    assert ctx.state["merch_support_enabled"] == "true"
     assert ctx.state["user_location"] == ""
     assert ctx.state["order_number"] == ""
     assert ctx.state["initialized"] == "true"

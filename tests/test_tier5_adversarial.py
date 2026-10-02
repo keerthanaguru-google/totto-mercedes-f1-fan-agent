@@ -104,7 +104,7 @@ def test_adv_get_race_schedule_compound_and_punctuated_user_locations(
   assert res["status"] == "success"
   assert res["needs_user_location"] is False
   assert res["resolved_timezone"].startswith(expected_tz_prefix)
-  assert "agent_action" not in res
+  assert "agent_action" in res and "weather" in res["agent_action"].lower()
 
 
 def test_adv_get_race_schedule_weather_override_branch() -> None:

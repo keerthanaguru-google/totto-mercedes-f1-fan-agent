@@ -112,7 +112,7 @@ def test_scenario_04_merch_full_post_purchase_support_journey() -> None:
 
   ctx = DummyCallbackContext({})
   cb(ctx)
-  assert ctx.state["is_mock_mode"] == "true"
+  assert ctx.state["merch_support_enabled"] == "true"
 
   # Step 1: Track order MERC-1001 using only order number
   ctx.state["order_number"] = "MERC-1001"

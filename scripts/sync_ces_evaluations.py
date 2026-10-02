@@ -531,6 +531,12 @@ def sync_evaluations(app_name: str) -> dict[str, Any]:
   for s in sims_raw.get("evals") or []:
     all_prompts.extend(s.get("expectations") or [])
 
+  cleanup_summary = clean_stale_remote_tools_and_expectations(
+      app_name=app_name,
+      evals_client=evals_client,
+      active_prompts=all_prompts,
+  )
+
   expectations_map = ensure_expectations_map(evals_client, app_name, all_prompts)
 
   golden_dicts = build_golden_evaluations_from_yaml(
@@ -673,12 +679,6 @@ def sync_evaluations(app_name: str) -> dict[str, Any]:
             "evaluation_count": len(updated_ds.evaluations),
         }
     )
-
-  cleanup_summary = clean_stale_remote_tools_and_expectations(
-      app_name=app_name,
-      evals_client=evals_client,
-      active_prompts=all_prompts,
-  )
 
   live_evals = evals_client.list_evaluations(app_name)
   invalid = [e.display_name for e in live_evals if e.invalid]

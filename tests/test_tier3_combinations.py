@@ -64,7 +64,7 @@ def test_comb_02_merch_order_lookup_to_damaged_request_to_availability_check() -
 
   ctx = DummyCallbackContext({})
   cb(ctx)
-  assert ctx.state["is_mock_mode"] == "true"
+  assert ctx.state["merch_support_enabled"] == "true"
 
   # Step 1: Lookup MERC-1002
   ctx.state["order_number"] = "MERC-1002"

@@ -30,12 +30,12 @@ class TestBeforeAgentCallback:
     return ctx
 
   def test_fresh_session_initializes_all_default_variables(self) -> None:
-    """Verifies fresh session initializes favorite_team, is_mock_mode, user_location, order_number, initialized."""
+    """Verifies fresh session initializes favorite_team, merch_support_enabled, user_location, order_number, initialized."""
     ctx = self._make_context({})
     result = callback_code.before_agent_callback(ctx)
     assert result is None
     assert ctx.state["favorite_team"] == "Mercedes"
-    assert ctx.state["is_mock_mode"] == "true"
+    assert ctx.state["merch_support_enabled"] == "true"
     assert ctx.state["user_location"] == ""
     assert ctx.state["order_number"] == ""
     assert ctx.state["initialized"] == "true"
@@ -49,7 +49,7 @@ class TestBeforeAgentCallback:
     result = callback_code.before_agent_callback(ctx)
     assert result is None
     assert ctx.state["favorite_team"] == "Mercedes"
-    assert ctx.state["is_mock_mode"] == "true"
+    assert ctx.state["merch_support_enabled"] == "true"
     assert ctx.state["user_location"] == "London"
     assert ctx.state["order_number"] == "MERC-1001"
     assert ctx.state["initialized"] == "true"
@@ -58,7 +58,7 @@ class TestBeforeAgentCallback:
     """Verifies pre-populated user_location, order_number, and favorite_team are not overwritten."""
     ctx = self._make_context({
         "favorite_team": "Mercedes-AMG PETRONAS",
-        "is_mock_mode": "true",
+        "merch_support_enabled": "true",
         "user_location": "Tokyo",
         "order_number": "MERC-1002",
     })
@@ -73,14 +73,14 @@ class TestBeforeAgentCallback:
     """Verifies None values for user_location/order_number and empty favorite_team are repaired."""
     ctx = self._make_context({
         "favorite_team": "",
-        "is_mock_mode": "",
+        "merch_support_enabled": "",
         "user_location": None,
         "order_number": None,
     })
     result = callback_code.before_agent_callback(ctx)
     assert result is None
     assert ctx.state["favorite_team"] == "Mercedes"
-    assert ctx.state["is_mock_mode"] == "true"
+    assert ctx.state["merch_support_enabled"] == "true"
     assert ctx.state["user_location"] == ""
     assert ctx.state["order_number"] == ""
     assert ctx.state["initialized"] == "true"

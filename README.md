@@ -50,7 +50,7 @@ flowchart TD
 
 ### Session Initialization Callback (`before_agent_callback`)
 
-Located at `cxas_app/totto_mercedes_f1_agent/agents/totto_root_agent/before_agent_callbacks/before_agent/python_code.py`, the callback runs idempotently before every turn to ensure all declared session variables (`favorite_team="Mercedes"`, `is_mock_mode="true"`, `user_location`, `order_number`, `initialized="true"`) are initialized in `callback_context.state` without overwriting user-provided values.
+Located at `cxas_app/totto_mercedes_f1_agent/agents/totto_root_agent/before_agent_callbacks/before_agent/python_code.py`, the callback runs idempotently before every turn to ensure all declared session variables (`favorite_team="Mercedes"`, `merch_support_enabled="true"`, `user_location`, `order_number`, `initialized="true"`) are initialized in `callback_context.state` without overwriting user-provided values.
 
 ---
 

@@ -457,9 +457,12 @@ def get_race_schedule(
         "needs_user_location": True,
         "race": race_data,
         "agent_action": (
-            "Share the race weekend dates, weather, and venue-local session "
-            "times, and ask the user for their city or timezone so you can "
-            "provide exact start times in their local timezone."
+            "Ask the user for their city or timezone FIRST before quoting any "
+            "session clock times (do NOT state any local or UTC clock times "
+            "such as '4 PM local time' while user_location is empty). Share "
+            "the race weekend dates, circuit weather (condition, temperature "
+            "in C/F, and rain chance), and explicitly state that schedule and "
+            "weather details come from the latest available structured data."
         ),
     })
 
@@ -524,6 +527,13 @@ def get_race_schedule(
         f"Could not map location '{clean_location}' to a known timezone; share "
         "the UTC and venue-local session times and ask the user to clarify "
         "their timezone (e.g., EDT, BST, CEST, JST)."
+    )
+  else:
+    payload["agent_action"] = (
+        "Share the localized session start times in the user's timezone "
+        "alongside the circuit weather (condition, temperature in C/F, and "
+        "rain chance), and explicitly state that the race schedule and "
+        "weather details come from the latest available structured data."
     )
   return _with_envelope(payload)
 

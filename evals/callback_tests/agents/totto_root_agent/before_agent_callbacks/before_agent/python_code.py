@@ -15,7 +15,7 @@ def before_agent_callback(
 ) -> Optional[Content]:
   """Initializes default session state variables before the root agent runs.
 
-  Sets default values for favorite_team, is_mock_mode, user_location,
+  Sets default values for favorite_team, merch_support_enabled, user_location,
   order_number, and initialized on the session state dictionary while preserving
   any values already populated earlier in the conversation.
 
@@ -30,8 +30,8 @@ def before_agent_callback(
   if not state.get("favorite_team"):
     state["favorite_team"] = "Mercedes"
 
-  if not state.get("is_mock_mode"):
-    state["is_mock_mode"] = "true"
+  if not state.get("merch_support_enabled"):
+    state["merch_support_enabled"] = "true"
 
   if "user_location" not in state or state.get("user_location") is None:
     state["user_location"] = ""

@@ -32,7 +32,7 @@ EXPECTED_TOOLS = (
 
 EXPECTED_VARIABLES = (
     "favorite_team",
-    "is_mock_mode",
+    "merch_support_enabled",
     "user_location",
     "order_number",
     "initialized",
