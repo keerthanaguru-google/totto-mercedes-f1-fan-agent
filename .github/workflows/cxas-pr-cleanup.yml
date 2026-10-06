@@ -23,6 +23,9 @@ env:
   CES_TRANSPORT: ${{ vars.CES_TRANSPORT || 'rest' }}
   GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
   GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT || secrets.GCP_SERVICE_ACCOUNT }}
+  HAS_GCP_WIF: ${{ (vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' || secrets.GCP_WORKLOAD_IDENTITY_PROVIDER != '') && (vars.GCP_SERVICE_ACCOUNT != '' || secrets.GCP_SERVICE_ACCOUNT != '') }}
+  HAS_GCP_KEY: ${{ secrets.GCP_SA_KEY != '' || secrets.GOOGLE_CREDENTIALS != '' || secrets.GCP_CREDENTIALS_JSON != '' }}
+  HAS_GCP_AUTH: ${{ ((vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' || secrets.GCP_WORKLOAD_IDENTITY_PROVIDER != '') && (vars.GCP_SERVICE_ACCOUNT != '' || secrets.GCP_SERVICE_ACCOUNT != '')) || (secrets.GCP_SA_KEY != '' || secrets.GOOGLE_CREDENTIALS != '' || secrets.GCP_CREDENTIALS_JSON != '') }}
 
 jobs:
   cleanup-totto-mercedes-f1-agent:
@@ -53,17 +56,38 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "requirements*.txt"
 
-      - name: Authenticate to Google Cloud
+      - name: Check GCP authentication availability
+        id: check_auth
+        run: |
+          set -euo pipefail
+          if [ "${{ env.HAS_GCP_AUTH }}" = "true" ]; then
+            echo "has_gcp_auth=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_gcp_auth=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=GCP Cleanup Skipped::No Google Cloud credentials configured. Ephemeral PR app cleanup skipped."
+          fi
+
+      - name: Authenticate to Google Cloud via Workload Identity Federation
         id: auth
+        if: env.HAS_GCP_WIF == 'true'
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_SERVICE_ACCOUNT || secrets.GCP_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+      - name: Authenticate to Google Cloud via Service Account Key
+        id: auth_key
+        if: env.HAS_GCP_WIF != 'true' && env.HAS_GCP_KEY == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY || secrets.GOOGLE_CREDENTIALS || secrets.GCP_CREDENTIALS_JSON }}
 
       - name: Set up Cloud SDK
+        if: env.HAS_GCP_AUTH == 'true'
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Install cxas-scrapi CLI
+        if: env.HAS_GCP_AUTH == 'true'
         run: |
           set -euo pipefail
           if [ -f requirements.txt ]; then
@@ -73,5 +97,7 @@ jobs:
           fi
 
       - name: Run Cleanup
+        if: env.HAS_GCP_AUTH == 'true'
         run: |
+          set -euo pipefail
           cxas delete --display-name "[CI] PR-${{ github.event.pull_request.number || inputs.pr_number }} totto_mercedes_f1_agent" --project-id ${{ vars.GCP_PROJECT_ID || 'agents-keerth-sandbox-950246' }} --location ${{ vars.GCP_LOCATION || 'global' }}
